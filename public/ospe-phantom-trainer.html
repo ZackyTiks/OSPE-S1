@@ -1,0 +1,1247 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OSPE Phantom Trainer — Latihan Praktik Anatomi Fisiologi Keperawatan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+        --font-sans: 'DM Sans', system-ui, sans-serif;
+        --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+      }
+      body {
+        font-family: var(--font-sans);
+        background-color: #f8fafc;
+        color: #0f172a;
+      }
+      h1, h2, h3, h4, .font-display {
+        font-family: var(--font-display);
+      }
+      .font-mono-tabular {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .phantom-organ {
+        cursor: pointer;
+        transition: filter 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms ease;
+      }
+      .phantom-organ:hover {
+        filter: brightness(1.08) drop-shadow(0 0 6px rgba(2, 132, 199, 0.45));
+      }
+      .phantom-organ.is-selected {
+        filter: drop-shadow(0 0 8px rgba(2, 132, 199, 0.75));
+      }
+      .phantom-organ.is-correct {
+        filter: drop-shadow(0 0 10px rgba(5, 150, 105, 0.92));
+      }
+      .phantom-organ.is-wrong {
+        filter: drop-shadow(0 0 10px rgba(220, 38, 38, 0.92));
+      }
+      @keyframes flowDash {
+        to { stroke-dashoffset: -28; }
+      }
+      .flow-animated {
+        stroke-dasharray: 8 6;
+        animation: flowDash 1.1s linear infinite;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .flow-animated { animation: none; }
+        .phantom-organ { transition: none; }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col bg-slate-50 text-slate-900 antialiased">
+    <!-- TOP BAR -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+        <a href="#top" id="brandHome" class="font-display text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0">
+          OSPE Phantom Trainer
+        </a>
+        <nav id="desktopNav" class="hidden md:flex items-center gap-6 text-sm font-medium"></nav>
+        <div class="flex items-center shrink-0">
+          <button id="openMissedTopBtn" type="button" class="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0">
+            Organ Salah (<span id="missedCountTop" class="font-mono-tabular">0</span>)
+          </button>
+        </div>
+      </div>
+      <div id="mobileNav" class="md:hidden border-t border-slate-100 px-4 py-2 flex items-center gap-2 overflow-x-auto"></div>
+    </header>
+
+    <!-- WORKSPACE TOOLBAR -->
+    <section class="bg-white border-b border-slate-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+        <div id="modeTabs" class="flex items-center gap-1 p-1 bg-slate-100 rounded-lg overflow-x-auto max-w-full"></div>
+        <div class="flex flex-wrap items-center gap-4 text-xs">
+          <div class="flex items-center gap-3 text-slate-600 font-mono-tabular">
+            <span>Skor: <strong id="statScore" class="text-slate-900 font-semibold">0</strong></span>
+            <span aria-hidden="true">·</span>
+            <span>Streak: <strong id="statStreak" class="text-emerald-700 font-semibold">0</strong></span>
+            <span aria-hidden="true">·</span>
+            <span>Akurasi: <strong id="statAccuracy" class="text-slate-900 font-semibold">0%</strong></span>
+          </div>
+          <button id="resetStatsBtn" type="button" title="Reset Skor" class="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 whitespace-nowrap shrink-0">
+            Reset Skor
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN 2-ZONE WORKSPACE -->
+    <main id="top" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- LEFT STAGE: SVG PHANTOM -->
+        <div class="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-4 sm:p-5">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <div id="stageMeta" class="text-xs text-slate-500"></div>
+              <h1 id="stageTitle" class="text-base sm:text-lg font-bold text-slate-900 tracking-tight"></h1>
+            </div>
+            <div id="stageControls" class="flex flex-wrap items-center gap-2"></div>
+          </div>
+          <div id="cardioLayerBar" class="hidden mb-3 flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100"></div>
+          <div id="svgStage" class="flex justify-center"></div>
+          <div class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+            <span id="hoverCaption">Arahkan kursor atau klik langsung organ pada diagram phantom.</span>
+            <span id="stageSystemTag" class="font-mono-tabular"></span>
+          </div>
+        </div>
+
+        <!-- RIGHT DECK: ACTIVE MODE PANEL -->
+        <div id="rightDeck" class="lg:col-span-5 space-y-5"></div>
+      </div>
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white mt-auto">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+        <span>OSPE Phantom Trainer — Simulasi Praktik Anatomi Fisiologi Keperawatan</span>
+        <span>Sistem Pencernaan · Cardiovaskuler · Endokrin</span>
+      </div>
+    </footer>
+
+    <!-- MISSED ORGANS MODAL -->
+    <div id="missedModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+      <div class="bg-white border border-slate-200 rounded-xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-xl">
+        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-slate-200">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Daftar Organ yang Masih Salah</h2>
+            <p id="missedModalSub" class="text-xs text-slate-500 mt-0.5"></p>
+          </div>
+          <button id="closeMissedBtn" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-500 hover:bg-slate-100">Tutup</button>
+        </div>
+        <div id="missedModalBody" class="flex-1 overflow-y-auto p-5 space-y-2.5"></div>
+        <div id="missedModalFooter" class="hidden px-5 py-4 border-t border-slate-200 flex items-center justify-between gap-3 bg-slate-50 rounded-b-xl">
+          <button id="clearMissedBtn" type="button" class="text-xs font-medium text-slate-600 hover:text-rose-700 underline">Kosongkan Daftar</button>
+          <button id="drillAllMissedBtn" type="button" class="px-4 py-2 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700">Latih Ulang Semua</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const SYSTEM_META = {
+          digestive: { label: 'Sistem Pencernaan', shortLabel: 'Pencernaan' },
+          cardiovascular: { label: 'Sistem Cardiovaskuler', shortLabel: 'Cardiovaskuler' },
+          endocrine: { label: 'Sistem Endokrin', shortLabel: 'Endokrin' },
+        };
+
+        const ORGANS = [
+          { id: 'dig-cavum-oris', system: 'digestive', name: 'Kavum Oris (Rongga Mulut)', latinName: 'Cavum Oris', category: 'Saluran Atas',
+            locationAndStructure: 'Pintu masuk saluran cerna. Tersusun atas palatum durum (langit-langit keras), palatum molle (langit-langit lunak) dengan uvula, lidah (lingua), serta gigi (dentes).',
+            mainFunction: 'Menerima makanan (ingesti), pengunyahan mekanik oleh gigi, dan mencampur makanan dengan saliva membentuk bolus.',
+            physiologicalRole: 'Saat menelan, palatum molle dan uvula terangkat menutup nasofaring agar makanan tidak masuk ke rongga hidung.',
+            cluePrompt: 'Rongga pintu masuk pencernaan yang memiliki palatum durum, palatum molle, uvula, lidah, dan gigi untuk membentuk bolus.',
+            ospeTip: 'Bedakan palatum durum (keras, anterior) dan palatum molle (lunak, menutup nasofaring saat menelan).',
+            keyFacts: ['Palatum durum & molle', 'Uvula & Lingua', 'Pembentukan bolus'] },
+          { id: 'dig-saliva', system: 'digestive', name: 'Kelenjar Saliva', latinName: 'Glandulae Salivariae', category: 'Organ Aksesoris Oral',
+            locationAndStructure: '3 pasang kelenjar eksokrin: Parotis (terbesar, depan/bawah telinga), Submandibularis (bawah rahang), dan Sublingualis (bawah lidah).',
+            mainFunction: 'Memproduksi saliva berisi mukus pelumas, lisozim, dan enzim amilase saliva (ptialin).',
+            physiologicalRole: 'Memulai digesti kimiawi karbohidrat (amilum menjadi maltosa) sejak di rongga mulut.',
+            cluePrompt: 'Tiga pasang kelenjar eksokrin (parotis, submandibularis, sublingualis) yang mensekresikan enzim amilase/ptialin.',
+            ospeTip: 'Parotis adalah kelenjar saliva terbesar.',
+            keyFacts: ['Parotis · Submandibularis · Sublingualis', 'Enzim ptialin (amilase)'] },
+          { id: 'dig-pharynx', system: 'digestive', name: 'Faring', latinName: 'Pharynx', category: 'Saluran Atas',
+            locationAndStructure: 'Saluran fibromuskular sepanjang ±12–14 cm di posterior rongga hidung, mulut, dan laring. Terbagi atas Nasofaring, Orofaring, dan Laringofaring.',
+            mainFunction: 'Persimpangan saluran respirasi dan pencernaan menuju esofagus.',
+            physiologicalRole: 'Saat menelan, epiglotis menekuk menutup aditus laringis sehingga bolus tidak masuk ke trakea.',
+            cluePrompt: 'Saluran persimpangan napas-cerna yang terbagi atas nasofaring, orofaring, dan laringofaring serta berperan dalam refleks menelan.',
+            ospeTip: 'Epiglotis menutup laring dan palatum lunak menutup nasofaring saat menelan.',
+            keyFacts: ['Nasofaring · Orofaring · Laringofaring', 'Proteksi jalan napas oleh epiglotis'] },
+          { id: 'dig-esophagus', system: 'digestive', name: 'Esofagus', latinName: 'Oesophagus', category: 'Saluran Atas',
+            locationAndStructure: 'Tabung muskular sepanjang ±25 cm di posterior trakea yang menembus diafragma menuju lambung.',
+            mainFunction: 'Menyalurkan bolus dari faring ke lambung menggunakan gerak peristaltik.',
+            physiologicalRole: 'Sfingter esofagus bawah (LES) berelaksasi saat bolus tiba dan menutup kembali untuk mencegah refluks asam.',
+            cluePrompt: 'Saluran muskular sepanjang ±25 cm yang menembus diafragma untuk menghantarkan bolus dari faring ke lambung.',
+            ospeTip: 'Ukuran standar OSPE: Esofagus ±25 cm.',
+            keyFacts: ['Panjang ±25 cm', 'Gerak peristaltik', 'Sfingter kardia/LES'] },
+          { id: 'dig-stomach', system: 'digestive', name: 'Lambung (Gaster)', latinName: 'Gaster / Ventriculus', category: 'Saluran Tengah',
+            locationAndStructure: 'Kantong berbentuk huruf J di kuadran kiri atas dengan bagian utama: Fundus, Korpus, dan Pilorus.',
+            mainFunction: 'Menampung makanan, mencerna protein oleh enzim pepsin dan HCl, serta mengaduk makanan menjadi bubur kim (chyme).',
+            physiologicalRole: 'HCl (pH 1,5–2) membunuh patogen dan mengaktifkan pepsinogen menjadi pepsin.',
+            cluePrompt: 'Organ berbentuk huruf J dengan bagian fundus, korpus, dan pilorus yang menghasilkan enzim pepsin serta bubur kim.',
+            ospeTip: 'Hafalkan 3 bagian: Fundus, Korpus, Pilorus + Pepsin + Bubur kim.',
+            keyFacts: ['Fundus · Korpus · Pilorus', 'Enzim pepsin & HCl', 'Membentuk bubur kim'] },
+          { id: 'dig-liver', system: 'digestive', name: 'Hati (Hepar)', latinName: 'Hepar', category: 'Organ Aksesoris',
+            locationAndStructure: 'Kelenjar terbesar tubuh (±1,5 kg) di kuadran kanan atas di bawah diafragma, terdiri dari lobus dekstra dan sinistra.',
+            mainFunction: 'Memproduksi cairan empedu untuk emulsifikasi lemak, metabolisme nutrien, dan detoksifikasi.',
+            physiologicalRole: 'Menerima darah kaya nutrien lewat vena porta hepatika (first-pass metabolism).',
+            cluePrompt: 'Organ aksesoris terbesar seberat ±1,5 kg di kuadran kanan atas yang memproduksi empedu dan melakukan detoksifikasi.',
+            ospeTip: 'Hati MEMPRODUKSI empedu (±1,5 kg), kantung empedu MENYIMPAN.',
+            keyFacts: ['Berat ±1,5 kg', 'Produksi cairan empedu', 'Detoksifikasi'] },
+          { id: 'dig-gallbladder', system: 'digestive', name: 'Kantung Empedu', latinName: 'Vesica Biliaris', category: 'Organ Aksesoris',
+            locationAndStructure: 'Kantong berbentuk pir sepanjang 8–12 cm di permukaan bawah lobus kanan hati.',
+            mainFunction: 'Menyimpan dan memekatkan cairan empedu sebelum dialirkan ke duodenum.',
+            physiologicalRole: 'Hormon CCK merangsang kontraksi kantung empedu saat lemak masuk ke duodenum.',
+            cluePrompt: 'Kantong berbentuk pir berukuran 8–12 cm di bawah lobus kanan hati yang menyimpan dan memekatkan empedu.',
+            ospeTip: 'Ukuran kunci OSPE: 8–12 cm.',
+            keyFacts: ['Panjang 8–12 cm', 'Menyimpan & memekatkan empedu'] },
+          { id: 'dig-pancreas', system: 'digestive', name: 'Pankreas (Eksokrin)', latinName: 'Pancreas', category: 'Organ Aksesoris',
+            locationAndStructure: 'Organ retroperitoneal di belakang lambung terdiri atas Kaput (di lengkung duodenum), Korpus, dan Kauda/Ekor.',
+            mainFunction: 'Eksokrin menghasilkan amilase, lipase, tripsin, serta bikarbonat penetral kim asam.',
+            physiologicalRole: 'Bikarbonat menaikkan pH duodenum menjadi basa agar enzim pankreas bekerja optimal.',
+            cluePrompt: 'Organ dengan bagian kaput, korpus, dan ekor yang menghasilkan enzim pencernaan (amilase, lipase, tripsin) serta bikarbonat.',
+            ospeTip: 'Kaput pankreas berada di lengkung C duodenum.',
+            keyFacts: ['Kaput · Korpus · Ekor', 'Amilase, Lipase, Tripsin'] },
+          { id: 'dig-small-intestine', system: 'digestive', name: 'Usus Halus', latinName: 'Intestinum Minor', category: 'Saluran Tengah',
+            locationAndStructure: 'Terdiri dari 3 segmen: Duodenum (±25 cm), Jejunum (2–3 m), dan Ileum (4–5 m).',
+            mainFunction: 'Lokasi utama pencernaan enzimatik lanjutan dan absorpsi >90% nutrien melalui vili.',
+            physiologicalRole: 'Duodenum menerima empedu & enzim pankreas; Jejunum absorpsi utama; Ileum menyerap vit B12 & garam empedu.',
+            cluePrompt: 'Saluran absorpsi utama yang terdiri dari duodenum (±25 cm), jejunum (2–3 m), dan ileum (4–5 m).',
+            ospeTip: 'Hafal ukuran: Duodenum ±25 cm, Jejunum 2–3 m, Ileum 4–5 m.',
+            keyFacts: ['Duodenum ±25 cm', 'Jejunum 2–3 m · Ileum 4–5 m'] },
+          { id: 'dig-large-intestine', system: 'digestive', name: 'Usus Besar', latinName: 'Intestinum Mayor', category: 'Saluran Bawah',
+            locationAndStructure: 'Meliputi Sekum, Apendiks, Kolon Asendens, Kolon Transversum, Kolon Desendens, dan Kolon Sigmoid.',
+            mainFunction: 'Mengabsorpsi sisa air dan elektrolit, memadatkan feses, serta sintesis vitamin K oleh flora normal.',
+            physiologicalRole: 'Gerakan massa mendorong feses dari kolon sigmoid menuju rektum.',
+            cluePrompt: 'Saluran berhaustra mencakup sekum, apendiks, serta kolon asendens, transversum, desendens, dan sigmoid.',
+            ospeTip: 'Apendiks menempel pada sekum di kuadran kanan bawah.',
+            keyFacts: ['Sekum & Apendiks', 'Kolon Asendens–Sigmoid', 'Absorpsi air & Vit K'] },
+          { id: 'dig-rectum-anus', system: 'digestive', name: 'Rektum & Anus', latinName: 'Rectum et Canalis Analis', category: 'Saluran Terminal',
+            locationAndStructure: 'Rektum sebagai ruang tampung feses; anus dikelilingi sfingter ani internus (otot polos) dan eksternus (otot lurik).',
+            mainFunction: 'Menampung feses sementara dan mengontrol eliminasi melalui refleks defekasi.',
+            physiologicalRole: 'Peregangan rektum merelaksasikan sfingter internus (polos/involunter), sedangkan sfingter eksternus (lurik/volunter) dikontrol sadar.',
+            cluePrompt: 'Bagian terminal saluran cerna dengan sfingter otot polos (involunter) dan otot lurik (volunter) yang mengatur refleks defekasi.',
+            ospeTip: 'Sfingter internus = polos (involunter); Sfingter eksternus = lurik (volunter).',
+            keyFacts: ['Sfingter polos (involunter)', 'Sfingter lurik (volunter)'] },
+
+          // CARDIOVASCULAR
+          { id: 'cv-pericardium', system: 'cardiovascular', name: 'Perikardium', latinName: 'Pericardium', category: 'Lapisan Dinding Jantung',
+            locationAndStructure: 'Kantong fibroserosa terluar pembungkus jantung dengan rongga berisi cairan serosa pelumas.',
+            mainFunction: 'Melindungi jantung, menjaga posisi di mediastinum, dan mengurangi gesekan saat memompa.',
+            physiologicalRole: 'Mencegah overdistensi jantung saat pengisian darah cepat.',
+            cluePrompt: 'Lapisan kantong pelindung terluar jantung yang memiliki cairan serosa untuk mencegah gesekan.',
+            ospeTip: 'Lapisan paling luar: Perikardium.',
+            keyFacts: ['Lapisan terluar', 'Cairan serosa pelumas'] },
+          { id: 'cv-myocardium', system: 'cardiovascular', name: 'Miokardium', latinName: 'Myocardium', category: 'Lapisan Dinding Jantung',
+            locationAndStructure: 'Lapisan tengah otot jantung paling tebal (terutama di ventrikel sinistra), terhubung oleh diskus interkalaris.',
+            mainFunction: 'Menghasilkan daya kontraksi memompa darah ke paru dan seluruh tubuh.',
+            physiologicalRole: 'Diskus interkalaris menyebarkan potensial aksi secara sinkron.',
+            cluePrompt: 'Lapisan otot tengah dinding jantung yang paling tebal (terutama di ventrikel kiri) dan berfungsi memompa darah.',
+            ospeTip: 'Miokardium ventrikel kiri paling tebal (~3x kanan).',
+            keyFacts: ['Lapisan otot tengah', 'Tertebal di ventrikel sinistra'] },
+          { id: 'cv-endocardium', system: 'cardiovascular', name: 'Endokardium', latinName: 'Endocardium', category: 'Lapisan Dinding Jantung',
+            locationAndStructure: 'Lapisan endotel terdalam yang licin melapisi keempat ruang dan membentuk daun katup jantung.',
+            mainFunction: 'Mencegah pembekuan darah (trombus) di dalam jantung dengan menyediakan permukaan halus.',
+            physiologicalRole: 'Berkelanjutan dengan tunika intima pembuluh besar.',
+            cluePrompt: 'Lapisan endotel terdalam yang licin melapisi ruang dalam jantung dan membentuk katup jantung.',
+            ospeTip: 'Infeksi lapisan ini disebut endokarditis.',
+            keyFacts: ['Lapisan endotel terdalam', 'Membentuk daun katup'] },
+          { id: 'cv-ra', system: 'cardiovascular', name: 'Atrium Dextra (Atrium Kanan)', latinName: 'Atrium Dextrum', category: 'Ruang Jantung',
+            locationAndStructure: 'Ruang kanan atas jantung, tempat bermuaranya Vena Cava Superior dan Inferior serta lokasi SA Node.',
+            mainFunction: 'Menerima darah miskin oksigen dari seluruh tubuh dan meneruskannya ke ventrikel kanan.',
+            physiologicalRole: 'Akhir peredaran darah besar (sistemik).',
+            cluePrompt: 'Ruang kanan atas jantung yang menerima darah miskin oksigen dari vena cava superior dan inferior.',
+            ospeTip: 'Sisi kanan pasien berada di sebelah kiri pengamat gambar.',
+            keyFacts: ['Terima VCS & VCI', 'Darah miskin O2'] },
+          { id: 'cv-rv', system: 'cardiovascular', name: 'Ventrikel Dextra (Ventrikel Kanan)', latinName: 'Ventriculus Dexter', category: 'Ruang Jantung',
+            locationAndStructure: 'Ruang kanan bawah jantung dengan dinding otot sedang.',
+            mainFunction: 'Memompa darah deoksigenasi melewati katup pulmonal menuju arteri pulmonalis ke paru-paru.',
+            physiologicalRole: 'Awal dari peredaran darah kecil (pulmonal).',
+            cluePrompt: 'Ruang kanan bawah jantung yang memompa darah miskin oksigen menuju paru-paru melalui arteri pulmonalis.',
+            ospeTip: 'Ventrikel kanan memulai sirkulasi pulmonal.',
+            keyFacts: ['Pompa ke Arteri Pulmonalis', 'Sirkulasi pulmonal'] },
+          { id: 'cv-la', system: 'cardiovascular', name: 'Atrium Sinistra (Atrium Kiri)', latinName: 'Atrium Sinistrum', category: 'Ruang Jantung',
+            locationAndStructure: 'Ruang kiri atas jantung yang menerima 4 muara vena pulmonalis dari paru kanan dan kiri.',
+            mainFunction: 'Menerima darah kaya oksigen dari paru-paru dan menyalurkannya ke ventrikel kiri.',
+            physiologicalRole: 'Akhir peredaran darah kecil (pulmonal).',
+            cluePrompt: 'Ruang kiri atas jantung yang menerima darah kaya oksigen dari paru-paru melalui empat vena pulmonalis.',
+            ospeTip: 'Darah di atrium kiri kaya oksigen.',
+            keyFacts: ['Terima 4 Vena Pulmonalis', 'Darah kaya O2'] },
+          { id: 'cv-lv', system: 'cardiovascular', name: 'Ventrikel Sinistra (Ventrikel Kiri)', latinName: 'Ventriculus Sinister', category: 'Ruang Jantung',
+            locationAndStructure: 'Ruang kiri bawah pembentuk apeks jantung dengan dinding miokardium paling tebal.',
+            mainFunction: 'Memompa darah kaya oksigen bertekanan tinggi ke aorta untuk seluruh tubuh.',
+            physiologicalRole: 'Awal peredaran darah besar (sistemik).',
+            cluePrompt: 'Ruang jantung dengan dinding miokardium paling tebal yang memompa darah kaya oksigen ke aorta.',
+            ospeTip: 'Apeks ventrikel kiri teraba sebagai iktus kordis di ICS 5 midklavikula kiri.',
+            keyFacts: ['Miokardium paling tebal', 'Pompa ke Aorta'] },
+          { id: 'cv-valve-tricuspid', system: 'cardiovascular', name: 'Katup Trikuspidalis', latinName: 'Valva Tricuspidalis', category: 'Katup Jantung',
+            locationAndStructure: 'Katup AV kanan (3 daun katup) antara atrium kanan dan ventrikel kanan.',
+            mainFunction: 'Mencegah aliran balik darah dari ventrikel kanan ke atrium kanan saat sistole.',
+            physiologicalRole: 'Menutup pada awal sistolik menghasilkan komponen bunyi jantung S1.',
+            cluePrompt: 'Katup berdaun tiga antara atrium kanan dan ventrikel kanan yang menutup saat fase sistolik.',
+            ospeTip: 'Trikuspid = Kanan (3 daun); Bikuspid/Mitral = Kiri (2 daun).',
+            keyFacts: ['Antara RA & RV', '3 daun katup · S1'] },
+          { id: 'cv-valve-mitral', system: 'cardiovascular', name: 'Katup Bikuspidalis (Mitral)', latinName: 'Valva Bicuspidalis / Mitralis', category: 'Katup Jantung',
+            locationAndStructure: 'Katup AV kiri (2 daun katup) antara atrium kiri dan ventrikel kiri.',
+            mainFunction: 'Mencegah regurgitasi darah kembali ke atrium kiri saat ventrikel kiri berkontraksi.',
+            physiologicalRole: 'Menutup saat awal sistolik menimbulkan bunyi S1 ("LUB").',
+            cluePrompt: 'Katup berdaun dua (mitral) antara atrium kiri dan ventrikel kiri yang menahan tekanan sistolik tinggi.',
+            ospeTip: 'Auskultasi mitral paling jelas di apeks jantung (ICS 5 midklavikula kiri).',
+            keyFacts: ['Antara LA & LV', '2 daun katup · S1'] },
+          { id: 'cv-valve-pulmonary', system: 'cardiovascular', name: 'Katup Semilunaris Pulmonal', latinName: 'Valva Trunci Pulmonalis', category: 'Katup Jantung',
+            locationAndStructure: 'Katup 3 bulan sabit di pangkal arteri pulmonalis (keluar ventrikel kanan).',
+            mainFunction: 'Membuka saat sistole RV dan menutup saat diastole agar darah tidak turun kembali ke RV.',
+            physiologicalRole: 'Penutupannya menghasilkan komponen bunyi S2 ("DUB") saat diastole.',
+            cluePrompt: 'Katup bulan sabit di pintu keluar ventrikel kanan menuju arteri pulmonalis yang menutup saat fase diastolik.',
+            ospeTip: 'Katup semilunar menutup saat diastole (S2).',
+            keyFacts: ['Pangkal Arteri Pulmonalis', 'Menutup saat diastole (S2)'] },
+          { id: 'cv-valve-aortic', system: 'cardiovascular', name: 'Katup Semilunaris Aorta', latinName: 'Valva Aortae', category: 'Katup Jantung',
+            locationAndStructure: 'Katup 3 bulan sabit di pangkal aorta (keluar ventrikel kiri).',
+            mainFunction: 'Membuka saat ejeksi ventrikel kiri dan menutup rapat saat diastole.',
+            physiologicalRole: 'Penutupan awal diastole menghasilkan bunyi S2 dan membantu pengisian arteri koroner.',
+            cluePrompt: 'Katup bulan sabit di pintu keluar ventrikel kiri menuju aorta yang menutup pada awal diastole.',
+            ospeTip: 'Arteri koroner terisi saat diastole ketika katup aorta menutup.',
+            keyFacts: ['Pangkal Aorta', 'Menutup saat diastole (S2)'] },
+          { id: 'cv-vena-cava', system: 'cardiovascular', name: 'Vena Cava Superior & Inferior', latinName: 'Vena Cava Superior et Inferior', category: 'Pembuluh Besar',
+            locationAndStructure: 'Dua vena besar bermuara ke atrium kanan (VCS dari tubuh atas, VCI dari tubuh bawah).',
+            mainFunction: 'Mengembalikan darah vena miskin O2 dari seluruh tubuh ke jantung.',
+            physiologicalRole: 'Menentukan venous return / preload jantung kanan.',
+            cluePrompt: 'Dua pembuluh balik besar yang mengembalikan darah miskin oksigen dari tubuh atas dan bawah ke atrium kanan.',
+            ospeTip: 'Bermuara langsung ke Atrium Dextra.',
+            keyFacts: ['VCS & VCI', 'Darah miskin O2 → RA'] },
+          { id: 'cv-pulm-artery', system: 'cardiovascular', name: 'Arteri Pulmonalis', latinName: 'Arteria Pulmonalis', category: 'Pembuluh Besar',
+            locationAndStructure: 'Keluar dari ventrikel kanan lalu bercabang menuju paru kanan dan paru kiri.',
+            mainFunction: 'Mengalirkan darah miskin oksigen dari ventrikel kanan ke paru untuk pertukaran gas.',
+            physiologicalRole: 'Satu-satunya arteri pasca-lahir yang membawa darah deoksigenasi.',
+            cluePrompt: 'Pembuluh besar dari ventrikel kanan ke paru-paru yang merupakan satu-satunya arteri pembawa darah miskin oksigen.',
+            ospeTip: 'Arteri = keluar dari jantung.',
+            keyFacts: ['RV → Paru', 'Darah miskin O2'] },
+          { id: 'cv-pulm-vein', system: 'cardiovascular', name: 'Vena Pulmonalis', latinName: 'Venae Pulmonales', category: 'Pembuluh Besar',
+            locationAndStructure: 'Empat pembuluh darah dari paru kanan dan kiri yang bermuara ke atrium kiri.',
+            mainFunction: 'Membawa darah kaya oksigen hasil respirasi paru kembali ke atrium kiri.',
+            physiologicalRole: 'Satu-satunya vena pasca-lahir yang membawa darah teroksigenasi.',
+            cluePrompt: 'Empat pembuluh balik dari paru-paru ke atrium kiri yang membawa darah kaya oksigen.',
+            ospeTip: 'Vena = menuju jantung.',
+            keyFacts: ['4 pembuluh dari Paru → LA', 'Darah kaya O2'] },
+          { id: 'cv-aorta', system: 'cardiovascular', name: 'Aorta', latinName: 'Aorta', category: 'Pembuluh Besar',
+            locationAndStructure: 'Arteri elastik terbesar (asendens, arkus aorta, desendens) keluar dari ventrikel kiri.',
+            mainFunction: 'Mengedarkan darah kaya oksigen ke seluruh tubuh.',
+            physiologicalRole: 'Rekoil elastis arkus aorta menjaga aliran darah dan tekanan diastolik tetap stabil.',
+            cluePrompt: 'Arteri terbesar keluar dari ventrikel kiri membentuk arkus untuk mengedarkan darah kaya oksigen ke seluruh tubuh.',
+            ospeTip: 'Keluar dari Ventrikel Sinistra melewati katup aorta.',
+            keyFacts: ['LV → Seluruh tubuh', 'Arteri sistemik terbesar'] },
+          { id: 'cv-sa-node', system: 'cardiovascular', name: 'SA Node (Nodus Sinoatrial)', latinName: 'Nodus Sinoatrialis', category: 'Konduksi Listrik',
+            locationAndStructure: 'Di dinding atas atrium kanan dekat muara vena cava superior.',
+            mainFunction: 'Pacemaker alami jantung (60–100 kali/menit) yang memulai impuls listrik.',
+            physiologicalRole: 'Mencetuskan depolarisasi atrium (gelombang P EKG).',
+            cluePrompt: 'Pacemaker alami jantung di dinding atas atrium kanan dekat muara vena cava superior (60–100 bpm).',
+            ospeTip: 'Pemacu utama irama sinus normal.',
+            keyFacts: ['Pacemaker 60–100 bpm', 'Atrium kanan atas'] },
+          { id: 'cv-av-node', system: 'cardiovascular', name: 'AV Node (Nodus Atrioventrikular)', latinName: 'Nodus Atrioventricularis', category: 'Konduksi Listrik',
+            locationAndStructure: 'Di dasar septum interatrial kanan tepat di atas katup trikuspidalis.',
+            mainFunction: 'Menunda impuls ±0,1 detik sebelum masuk ke ventrikel.',
+            physiologicalRole: 'Memberi waktu agar atrium menyelesaikan kontraksi mengisi ventrikel.',
+            cluePrompt: 'Simpul listrik di dasar septum interatrial yang menunda impuls ±0,1 detik agar pengisian ventrikel optimal.',
+            ospeTip: 'Penundaan di AV Node tampak sebagai segmen PR pada EKG.',
+            keyFacts: ['Tunda impuls ±0,1 detik', 'Jembatan listrik AV'] },
+          { id: 'cv-his-purkinje', system: 'cardiovascular', name: 'Berkas His & Serabut Purkinje', latinName: 'Fasciculus Atrioventricularis et Rami Purkinje', category: 'Konduksi Listrik',
+            locationAndStructure: 'Menuruni septum interventrikularis lalu menyebar ke dinding subendokardium kedua ventrikel.',
+            mainFunction: 'Menghantarkan impuls cepat agar ventrikel berkontraksi serempak dari apeks ke atas.',
+            physiologicalRole: 'Menghasilkan depolarisasi ventrikel (kompleks QRS EKG).',
+            cluePrompt: 'Jalur konduksi di septum interventrikularis hingga dinding ventrikel yang memicu kontraksi serempak dari apeks.',
+            ospeTip: 'Kontraksi dimulai dari apeks ke basis.',
+            keyFacts: ['Septum & miokardium ventrikel', 'Kompleks QRS'] },
+
+          // ENDOCRINE
+          { id: 'end-hypothalamus', system: 'endocrine', name: 'Hipotalamus', latinName: 'Hypothalamus', category: 'Pusat Neuroendokrin',
+            locationAndStructure: 'Diensefalon dasar otak tepat di atas hipofisis, terhubung lewat infundibulum.',
+            mainFunction: 'Mensekresi hormon pelepas/penghambat (TRH, CRH, GnRH) serta menyintesis ADH dan Oksitosin.',
+            physiologicalRole: 'Penghubung utama sistem saraf dan sistem endokrin.',
+            cluePrompt: 'Pusat kendali neuroendokrin di dasar otak yang mensekresi hormon pelepas untuk mengatur kelenjar hipofisis.',
+            ospeTip: 'Menyintesis ADH & Oksitosin untuk disimpan di hipofisis posterior.',
+            keyFacts: ['Sekresi RH/IH', 'Sintesis ADH & Oksitosin'] },
+          { id: 'end-pituitary-ant', system: 'endocrine', name: 'Hipofisis Anterior (Adenohipofisis)', latinName: 'Adenohypophysis', category: 'Master Gland',
+            locationAndStructure: 'Lobus depan pituitari di sella tursika tulang sfenoid.',
+            mainFunction: 'Menghasilkan hormon GH, TSH, ACTH, FSH, LH, dan Prolaktin.',
+            physiologicalRole: 'Diatur hormon hipotalamus serta umpan balik negatif organ target.',
+            cluePrompt: 'Lobus depan kelenjar pituitari yang memproduksi hormon GH, TSH, ACTH, FSH, LH, dan Prolaktin.',
+            ospeTip: 'Ingat: FLAT PEG (FSH, LH, ACTH, TSH, Prolaktin, GH).',
+            keyFacts: ['GH · TSH · ACTH · FSH/LH · Prolaktin'] },
+          { id: 'end-pituitary-post', system: 'endocrine', name: 'Hipofisis Posterior (Neurohipofisis)', latinName: 'Neurohypophysis', category: 'Master Gland',
+            locationAndStructure: 'Lobus belakang pituitari yang berisi akson saraf dari hipotalamus.',
+            mainFunction: 'Menyimpan dan melepaskan hormon ADH (Vasopresin) dan Oksitosin.',
+            physiologicalRole: 'ADH mengatur retensi air ginjal; Oksitosin memicu kontraksi uterus & ejeksi ASI.',
+            cluePrompt: 'Lobus belakang kelenjar pituitari yang menyimpan dan melepaskan hormon ADH serta Oksitosin.',
+            ospeTip: 'Hanya melepaskan 2 hormon: ADH dan Oksitosin.',
+            keyFacts: ['ADH (Vasopresin) & Oksitosin'] },
+          { id: 'end-thyroid', system: 'endocrine', name: 'Kelenjar Tiroid', latinName: 'Glandula Thyroidea', category: 'Kelenjar Leher',
+            locationAndStructure: 'Berbentuk kupu-kupu di leher anterior depan trakea.',
+            mainFunction: 'Menghasilkan T3, T4 (laju metabolisme basal) dan Kalsitonin (menurunkan Ca2+ darah).',
+            physiologicalRole: 'Kalsitonin menekan pelepasan kalsium dari tulang saat hiperkalsemia.',
+            cluePrompt: 'Kelenjar berbentuk kupu-kupu di leher anterior yang menghasilkan hormon T3, T4, dan Kalsitonin.',
+            ospeTip: 'Kalsitonin menurunkan kadar kalsium darah.',
+            keyFacts: ['Bentuk kupu-kupu', 'T3, T4 & Kalsitonin'] },
+          { id: 'end-parathyroid', system: 'endocrine', name: 'Kelenjar Paratiroid', latinName: 'Glandulae Parathyroideae', category: 'Kelenjar Leher',
+            locationAndStructure: '4 kelenjar kecil menempel di permukaan posterior tiroid.',
+            mainFunction: 'Menghasilkan Parathormon (PTH) untuk menaikkan kadar kalsium darah.',
+            physiologicalRole: 'Saat hipokalsemia, PTH memicu pelepasan Ca2+ tulang, reabsorpsi ginjal, dan absorpsi usus.',
+            cluePrompt: 'Empat kelenjar kecil di belakang tiroid yang menghasilkan hormon PTH untuk menaikkan kalsium darah.',
+            ospeTip: 'Antagonis Kalsitonin: PTH menaikkan Ca2+ darah.',
+            keyFacts: ['4 kelenjar posterior tiroid', 'Hormon PTH (naikkan Ca2+)'] },
+          { id: 'end-adrenal', system: 'endocrine', name: 'Kelenjar Adrenal (Suprarenal)', latinName: 'Glandula Suprarenalis', category: 'Kelenjar Abdomen',
+            locationAndStructure: 'Sepasang kelenjar di kutub atas ginjal; terdiri atas Korteks (luar) dan Medula (dalam).',
+            mainFunction: 'Korteks: Kortisol & Aldosteron. Medula: Adrenalin (Epinefrin) & Norepinefrin.',
+            physiologicalRole: 'Mengatur respons stres, keseimbangan Na+/air, dan respons simpatis fight-or-flight.',
+            cluePrompt: 'Kelenjar di atas kedua ginjal yang terbagi menjadi korteks (kortisol & aldosteron) dan medula (adrenalin/epinefrin).',
+            ospeTip: 'Korteks = Kortisol & Aldosteron; Medula = Epinefrin/Adrenalin.',
+            keyFacts: ['Korteks: Kortisol & Aldosteron', 'Medula: Epinefrin'] },
+          { id: 'end-pancreas-islets', system: 'endocrine', name: 'Pankreas Endokrin (Pulau Langerhans)', latinName: 'Insulae Pancreaticae', category: 'Kelenjar Metabolik',
+            locationAndStructure: 'Gugusan sel endokrin di pankreas berisi Sel Beta dan Sel Alfa.',
+            mainFunction: 'Sel Beta → Insulin (menurunkan gula darah); Sel Alfa → Glukagon (menaikkan gula darah).',
+            physiologicalRole: 'Menjaga kadar glukosa darah tetap homeostasis antara kondisi makan dan puasa.',
+            cluePrompt: 'Pulau Langerhans di pankreas yang memiliki sel beta penghasil insulin dan sel alfa penghasil glukagon.',
+            ospeTip: 'Beta = Insulin (turun); Alfa = Glukagon (naik).',
+            keyFacts: ['Sel β → Insulin', 'Sel α → Glukagon'] },
+          { id: 'end-ovary', system: 'endocrine', name: 'Gonad Wanita: Ovarium', latinName: 'Ovarium', category: 'Gonad',
+            locationAndStructure: 'Sepasang kelenjar oval di rongga pelvis kanan dan kiri uterus.',
+            mainFunction: 'Menghasilkan ovum serta hormon Estrogen dan Progesteron.',
+            physiologicalRole: 'Mengatur siklus menstruasi, ciri seks sekunder wanita, dan kehamilan.',
+            cluePrompt: 'Kelenjar gonad wanita di rongga pelvis yang menghasilkan hormon estrogen dan progesteron.',
+            ospeTip: 'Estrogen & Progesteron diatur oleh FSH & LH.',
+            keyFacts: ['Estrogen & Progesteron', 'Rongga pelvis'] },
+          { id: 'end-testis', system: 'endocrine', name: 'Gonad Pria: Testis', latinName: 'Testis', category: 'Gonad',
+            locationAndStructure: 'Sepasang kelenjar oval di dalam skrotum dengan sel Leydig.',
+            mainFunction: 'Memproduksi sperma dan hormon Testosteron.',
+            physiologicalRole: 'Mengatur spermatogenesis dan perkembangan ciri seks sekunder pria.',
+            cluePrompt: 'Kelenjar gonad pria di skrotum yang menghasilkan hormon testosteron.',
+            ospeTip: 'Sel Leydig memproduksi Testosteron saat dirangsang LH.',
+            keyFacts: ['Hormon Testosteron', 'Sel Leydig'] },
+        ];
+
+        const FLOWS = [
+          {
+            id: 'f-dig-4', system: 'digestive', title: '4 Tahap Pencernaan', summary: 'Ingesti → Digesti → Absorbsi → Eliminasi',
+            steps: [
+              { title: '1. Ingesti', detail: 'Pemasukan makanan ke kavum oris, mastikasi gigi, dan pencampuran saliva.', highlight: ['dig-cavum-oris', 'dig-saliva'] },
+              { title: '2. Digesti', detail: 'Pemecahan mekanik dan kimiawi oleh ptialin mulut, pepsin & HCl lambung, empedu, dan enzim pankreas.', highlight: ['dig-stomach', 'dig-liver', 'dig-gallbladder', 'dig-pancreas'] },
+              { title: '3. Absorbsi', detail: 'Penyerapan nutrien di usus halus (duodenum, jejunum, ileum) serta penyerapan air di usus besar.', highlight: ['dig-small-intestine', 'dig-large-intestine'] },
+              { title: '4. Eliminasi', detail: 'Pemadatan feses di kolon, tampung di rektum, dan pengeluaran melalui anus.', highlight: ['dig-large-intestine', 'dig-rectum-anus'] },
+            ]
+          },
+          {
+            id: 'f-dig-swallow', system: 'digestive', title: 'Mekanisme Menelan', summary: 'Peran palatum lunak & epiglotis',
+            steps: [
+              { title: '1. Fase Oral', detail: 'Lidah mendorong bolus ke belakang menuju orofaring.', highlight: ['dig-cavum-oris'] },
+              { title: '2. Palatum Lunak Menutup Nasofaring', detail: 'Palatum molle & uvula terangkat menutup rongga hidung.', highlight: ['dig-cavum-oris', 'dig-pharynx'] },
+              { title: '3. Epiglotis Menutup Laring', detail: 'Epiglotis menekuk menutup jalan napas sehingga bolus masuk ke esofagus (±25 cm) lewat peristaltik.', highlight: ['dig-pharynx', 'dig-esophagus'] },
+            ]
+          },
+          {
+            id: 'f-dig-defecation', system: 'digestive', title: 'Refleks Defekasi', summary: 'Sfingter polos vs lurik',
+            steps: [
+              { title: '1. Distensi Rektum', detail: 'Feses masuk dari kolon sigmoid ke rektum merangsang reseptor regang.', highlight: ['dig-large-intestine', 'dig-rectum-anus'] },
+              { title: '2. Relaksasi Sfingter Internus (Polos)', detail: 'Refleks spinal parasimpatis merelaksasikan sfingter ani internus secara involunter.', highlight: ['dig-rectum-anus'] },
+              { title: '3. Kontrol Sfingter Eksternus (Lurik)', detail: 'Sfingter ani eksternus (otot lurik) direlaksasikan secara sadar untuk mengeluarkan feses.', highlight: ['dig-rectum-anus'] },
+            ]
+          },
+          {
+            id: 'f-cv-pulm', system: 'cardiovascular', title: 'Sirkulasi Pulmonal (Kecil)', summary: 'RV → A. Pulmonalis → Paru → V. Pulmonalis → LA',
+            steps: [
+              { title: '1. Ventrikel Kanan → Arteri Pulmonalis', detail: 'Darah miskin O2 dipompa dari ventrikel kanan melewati katup pulmonal ke arteri pulmonalis menuju paru.', highlight: ['cv-rv', 'cv-valve-pulmonary', 'cv-pulm-artery'] },
+              { title: '2. Vena Pulmonalis → Atrium Kiri', detail: 'Setelah oksigenasi di paru, darah kaya O2 kembali lewat vena pulmonalis masuk ke atrium kiri.', highlight: ['cv-pulm-vein', 'cv-la'] },
+            ]
+          },
+          {
+            id: 'f-cv-syst', system: 'cardiovascular', title: 'Sirkulasi Sistemik (Besar)', summary: 'LV → Aorta → Tubuh → Vena Cava → RA',
+            steps: [
+              { title: '1. Ventrikel Kiri → Aorta', detail: 'Ventrikel kiri memompa darah kaya O2 bertekanan tinggi melewati katup aorta ke aorta menuju seluruh tubuh.', highlight: ['cv-lv', 'cv-valve-aortic', 'cv-aorta'] },
+              { title: '2. Vena Cava → Atrium Kanan', detail: 'Darah vena miskin O2 kembali lewat VCS & VCI ke atrium kanan.', highlight: ['cv-vena-cava', 'cv-ra'] },
+            ]
+          },
+          {
+            id: 'f-cv-cycle', system: 'cardiovascular', title: 'Sistole, Diastole & Konduksi', summary: 'SA → AV → His → Purkinje & Katup',
+            steps: [
+              { title: '1. SA Node → AV Node', detail: 'SA Node mencetuskan impuls (60–100 bpm), atrium berkontraksi, impuls ditunda ~0,1 dtk di AV Node.', highlight: ['cv-sa-node', 'cv-av-node'] },
+              { title: '2. Fase Sistolik (S1)', detail: 'Impuls menyebar lewat Berkas His & Purkinje; ventrikel berkontraksi, katup Trikuspid & Mitral menutup (S1 "LUB").', highlight: ['cv-his-purkinje', 'cv-valve-tricuspid', 'cv-valve-mitral'] },
+              { title: '3. Fase Diastolik (S2)', detail: 'Ventrikel berelaksasi; katup Semilunar Pulmonal & Aorta menutup (S2 "DUB") sementara ventrikel terisi ulang.', highlight: ['cv-valve-pulmonary', 'cv-valve-aortic'] },
+            ]
+          },
+          {
+            id: 'f-end-fb', system: 'endocrine', title: 'Umpan Balik Negatif', summary: 'Aksis Hipotalamus–Hipofisis–Tiroid',
+            steps: [
+              { title: '1. Hipotalamus → TRH', detail: 'Hipotalamus melepas TRH menuju hipofisis anterior.', highlight: ['end-hypothalamus'] },
+              { title: '2. Hipofisis Anterior → TSH', detail: 'Hipofisis anterior melepas TSH merangsang tiroid memproduksi T3/T4.', highlight: ['end-pituitary-ant', 'end-thyroid'] },
+              { title: '3. Inhibisi Balik (Negative Feedback)', detail: 'Kadar T3/T4 tinggi menghambat TRH hipotalamus & TSH hipofisis agar homeostasis terjaga.', highlight: ['end-thyroid', 'end-hypothalamus', 'end-pituitary-ant'] },
+            ]
+          },
+          {
+            id: 'f-end-glu', system: 'endocrine', title: 'Regulasi Glukosa Darah', summary: 'Insulin (Sel β) vs Glukagon (Sel α)',
+            steps: [
+              { title: '1. Hiperglikemia → Insulin', detail: 'Sel Beta Pulau Langerhans melepas Insulin memasukkan glukosa ke sel & glikogenesis (gula darah turun).', highlight: ['end-pancreas-islets'] },
+              { title: '2. Hipoglikemia → Glukagon', detail: 'Sel Alfa melepas Glukagon memecah glikogen hati menjadi glukosa (gula darah naik).', highlight: ['end-pancreas-islets'] },
+            ]
+          },
+          {
+            id: 'f-end-ca', system: 'endocrine', title: 'Regulasi Kalsium Darah', summary: 'Kalsitonin (Tiroid) vs PTH (Paratiroid)',
+            steps: [
+              { title: '1. Ca2+ Tinggi → Kalsitonin', detail: 'Tiroid melepas Kalsitonin mendepositkan Ca2+ ke tulang (Ca2+ darah turun).', highlight: ['end-thyroid'] },
+              { title: '2. Ca2+ Rendah → PTH', detail: 'Paratiroid melepas PTH melepaskan Ca2+ dari tulang & meningkatkan reabsorpsi di ginjal/usus (Ca2+ naik).', highlight: ['end-parathyroid'] },
+            ]
+          },
+        ];
+
+        const QUIZZES = [
+          { id: 'q1', system: 'digestive', organ: 'dig-pharynx', q: 'Struktur yang terangkat menutup nasofaring agar makanan tidak masuk hidung saat menelan adalah...', opts: ['Palatum durum', 'Palatum molle & uvula', 'Sfingter pilorus', 'Esofagus'], ans: 1, exp: 'Palatum lunak (molle) menutup nasofaring sementara epiglotis menutup trakea saat fase faringeal menelan.' },
+          { id: 'q2', system: 'digestive', organ: 'dig-stomach', q: 'Enzim lambung yang aktif dalam suasana asam (HCl) untuk memecah protein menjadi pepton adalah...', opts: ['Amilase', 'Pepsin', 'Lipase', 'Ptialin'], ans: 1, exp: 'Pepsinogen diaktifkan oleh HCl lambung menjadi pepsin untuk mencerna protein dalam bubur kim.' },
+          { id: 'q3', system: 'digestive', organ: 'dig-small-intestine', q: 'Urutan panjang segmen usus halus yang benar adalah...', opts: ['Duodenum ±25 cm → Jejunum 2–3 m → Ileum 4–5 m', 'Jejunum ±25 cm → Duodenum 2–3 m → Ileum 4–5 m', 'Duodenum 2–3 m → Jejunum 4–5 m → Ileum ±25 cm', 'Ileum ±25 cm → Duodenum 2–3 m → Jejunum 4–5 m'], ans: 0, exp: 'Duodenum ±25 cm, Jejunum 2–3 meter, dan Ileum 4–5 meter.' },
+          { id: 'q4', system: 'digestive', organ: 'dig-gallbladder', q: 'Perbedaan fungsi hati (±1,5 kg) dan kantung empedu (8–12 cm) adalah...', opts: ['Hati menyimpan, empedu membuat', 'Hati memproduksi empedu, kantung empedu menyimpan & memekatkan', 'Keduanya membuat tripsin', 'Kantung empedu memecah karbohidrat'], ans: 1, exp: 'Hati memproduksi cairan empedu; kantung empedu menyimpannya dan memekatkannya.' },
+          { id: 'q5', system: 'digestive', organ: 'dig-rectum-anus', q: 'Pada refleks defekasi, kontrol penahanan feses secara sadar dilakukan oleh...', opts: ['Sfingter ani internus (otot polos)', 'Sfingter ani eksternus (otot lurik)', 'Katup ileosekal', 'Kolon sigmoid'], ans: 1, exp: 'Sfingter internus bersifat polos/involunter, sedangkan sfingter eksternus bersifat lurik/volunter.' },
+          { id: 'q6', system: 'cardiovascular', organ: 'cv-pulm-artery', q: 'Urutan peredaran darah kecil (pulmonal) yang tepat adalah...', opts: ['Ventrikel kiri → Aorta → Paru → Vena cava → Atrium kanan', 'Ventrikel kanan → Arteri pulmonalis → Paru → Vena pulmonalis → Atrium kiri', 'Atrium kanan → Arteri pulmonalis → Paru → Vena pulmonalis → Ventrikel kiri', 'Ventrikel kanan → Vena pulmonalis → Paru → Arteri pulmonalis → Atrium kiri'], ans: 1, exp: 'Darah miskin O2 keluar dari ventrikel kanan ke arteri pulmonalis menuju paru, lalu kembali lewat vena pulmonalis ke atrium kiri.' },
+          { id: 'q7', system: 'cardiovascular', organ: 'cv-sa-node', q: 'Urutan sistem konduksi listrik jantung normal adalah...', opts: ['AV Node → SA Node → His → Purkinje', 'SA Node → AV Node → Berkas His → Serabut Purkinje', 'SA Node → Purkinje → AV Node → His', 'His → AV Node → SA Node → Purkinje'], ans: 1, exp: 'SA Node memulai impuls, AV Node menunda ~0,1 detik, lalu diteruskan oleh Berkas His dan Serabut Purkinje.' },
+          { id: 'q8', system: 'cardiovascular', organ: 'cv-valve-mitral', q: 'Bunyi jantung pertama (S1 / "LUB") pada awal sistolik terjadi karena menutupnya katup...', opts: ['Semilunaris aorta & pulmonal', 'Trikuspidalis & Bikuspidalis (Mitral)', 'Aorta & Mitral', 'Pulmonal & Trikuspidalis'], ans: 1, exp: 'Penutupan katup AV (trikuspidalis & bikuspidalis/mitral) saat ventrikel berkontraksi menghasilkan S1.' },
+          { id: 'q9', system: 'cardiovascular', organ: 'cv-lv', q: 'Ruang jantung dengan miokardium paling tebal adalah...', opts: ['Atrium dextra', 'Ventrikel dextra', 'Atrium sinistra', 'Ventrikel sinistra'], ans: 3, exp: 'Ventrikel sinistra memompa darah bertekanan tinggi ke aorta menuju seluruh tubuh.' },
+          { id: 'q10', system: 'cardiovascular', organ: 'cv-myocardium', q: 'Urutan 3 lapisan dinding jantung dari luar ke dalam adalah...', opts: ['Endokardium → Miokardium → Perikardium', 'Perikardium → Miokardium → Endokardium', 'Miokardium → Perikardium → Endokardium', 'Perikardium → Endokardium → Miokardium'], ans: 1, exp: 'Terluar Perikardium, tengah Miokardium, terdalam Endokardium.' },
+          { id: 'q11', system: 'endocrine', organ: 'end-pituitary-post', q: 'Hormon yang dilepaskan oleh lobus posterior hipofisis adalah...', opts: ['GH dan TSH', 'ADH dan Oksitosin', 'FSH dan LH', 'ACTH dan Prolaktin'], ans: 1, exp: 'Hipofisis posterior menyimpan & melepaskan ADH (Vasopresin) dan Oksitosin.' },
+          { id: 'q12', system: 'endocrine', organ: 'end-pancreas-islets', q: 'Hormon yang menurunkan kadar glukosa darah setelah makan berasal dari...', opts: ['Sel alfa Pulau Langerhans (Glukagon)', 'Sel beta Pulau Langerhans (Insulin)', 'Medula adrenal (Epinefrin)', 'Paratiroid (PTH)'], ans: 1, exp: 'Sel beta Pulau Langerhans mensekresi Insulin untuk menurunkan gula darah.' },
+          { id: 'q13', system: 'endocrine', organ: 'end-parathyroid', q: 'Saat kadar kalsium darah rendah (hipokalsemia), hormon yang dilepaskan untuk menaikkan Ca2+ darah adalah...', opts: ['Kalsitonin dari tiroid', 'PTH dari 4 kelenjar paratiroid', 'Aldosteron dari korteks adrenal', 'Oksitosin'], ans: 1, exp: 'PTH menaikkan kalsium darah melalui pelepasan Ca2+ tulang, reabsorpsi ginjal, dan absorpsi usus.' },
+          { id: 'q14', system: 'endocrine', organ: 'end-adrenal', q: 'Korteks adrenal menghasilkan Kortisol & Aldosteron, sedangkan Medula adrenal menghasilkan...', opts: ['Insulin & Glukagon', 'Epinefrin (Adrenalin) & Norepinefrin', 'T3 & T4', 'TSH & ACTH'], ans: 1, exp: 'Medula adrenal mensekresi epinefrin (adrenalin) untuk respons simpatis fight-or-flight.' },
+          { id: 'q15', system: 'endocrine', organ: 'end-hypothalamus', q: 'Prinsip umpan balik negatif (negative feedback) pada aksis tiroid berarti...', opts: ['T3/T4 tinggi memacu TRH terus meningkat', 'T3/T4 tinggi menghambat sekresi TRH hipotalamus dan TSH hipofisis anterior', 'TSH langsung merusak tiroid', 'Kalsitonin menurunkan glukosa'], ans: 1, exp: 'Peningkatan produk hormon target (T3/T4) memberi sinyal hambat ke hipotalamus dan hipofisis anterior.' },
+        ];
+
+        // STATE
+        const state = {
+          tab: 'digestive',
+          mixedView: 'digestive',
+          mode: 'explore',
+          showLabels: true,
+          cardioLayer: 'all',
+          selectedId: 'dig-stomach',
+          flowId: null,
+          flowStep: 0,
+          locatePromptPref: 'mixed',
+          locateKind: 'name',
+          locateTarget: null,
+          locateFeedback: null,
+          locateNum: 1,
+          drillMissed: false,
+          quizList: [],
+          quizIdx: 0,
+          quizChoice: null,
+          score: 0,
+          streak: 0,
+          attempts: 0,
+          corrects: 0,
+          missedIds: [],
+        };
+
+        // SVG TEMPLATES
+        function svgHeader(gridId, aria) {
+          return `<svg viewBox="0 0 560 660" class="w-full h-auto max-h-[600px] select-none" role="img" aria-label="${aria}">
+            <defs>
+              <pattern id="${gridId}" width="28" height="28" patternUnits="userSpaceOnUse">
+                <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#E2E8F0" stroke-width="0.6" />
+              </pattern>
+              <marker id="arrB" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#1D4ED8"/></marker>
+              <marker id="arrR" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#DC2626"/></marker>
+            </defs>
+            <rect x="0" y="0" width="560" height="660" rx="16" fill="#F8FAFC"/>
+            <rect x="0" y="0" width="560" height="660" rx="16" fill="url(#${gridId})" opacity="0.65"/>`;
+        }
+
+        function organAttrs(id, defStroke, defW) {
+          let cls = 'phantom-organ';
+          let stroke = defStroke;
+          let sw = defW;
+          const hlFlow = state.mode === 'explore' && state.flowId
+            ? (FLOWS.find(f => f.id === state.flowId)?.steps[state.flowStep]?.highlight || [])
+            : [];
+          const correctId = state.mode === 'locate' && state.locateFeedback ? state.locateFeedback.target.id : null;
+          const wrongId = state.mode === 'locate' && state.locateFeedback && !state.locateFeedback.ok && state.locateFeedback.clicked ? state.locateFeedback.clicked.id : null;
+          const selId = state.mode === 'explore' ? state.selectedId : (state.mode === 'quiz' && state.quizChoice !== null ? state.quizList[state.quizIdx]?.organ : null);
+
+          if (correctId === id) { cls += ' is-correct'; stroke = '#059669'; sw = defW + 2.5; }
+          else if (wrongId === id) { cls += ' is-wrong'; stroke = '#DC2626'; sw = defW + 2.5; }
+          else if (selId === id || hlFlow.includes(id)) { cls += ' is-selected'; stroke = '#0284C7'; sw = defW + 2; }
+          return { cls, stroke, sw };
+        }
+
+        function showLabelFor(id) {
+          if (state.mode === 'explore') {
+            return state.showLabels || state.selectedId === id;
+          }
+          if (state.mode === 'locate') {
+            if (!state.locateFeedback) return false;
+            return state.locateFeedback.target.id === id || (state.locateFeedback.clicked && state.locateFeedback.clicked.id === id);
+          }
+          return true;
+        }
+
+        function renderDigestiveSvg() {
+          const a = (id, s, w) => organAttrs(id, s, w);
+          const lbl = (id, line, rx, ry, rw, txt, tx, ty) => showLabelFor(id)
+            ? `<g><line ${line} stroke="#475569" stroke-width="1.1"/><rect x="${rx}" y="${ry}" width="${rw}" height="22" rx="5" fill="#FFF" stroke="#CBD5E1"/><text x="${tx}" y="${ty}" text-anchor="middle" fill="#0F172A">${txt}</text></g>` : '';
+
+          const oOris = a('dig-cavum-oris', '#BE123C', 1.8);
+          const oPhar = a('dig-pharynx', '#C2410C', 1.8);
+          const oSal = a('dig-saliva', '#A16207', 1.8);
+          const oEso = a('dig-esophagus', '#9A3412', 1.8);
+          const oPan = a('dig-pancreas', '#B45309', 1.8);
+          const oSto = a('dig-stomach', '#9F1239', 2);
+          const oLiv = a('dig-liver', '#431407', 2);
+          const oGb = a('dig-gallbladder', '#14532D', 1.8);
+          const oSi = a('dig-small-intestine', '#C2410C', 2.2);
+          const oLi = a('dig-large-intestine', '#115E59', 2);
+          const oRec = a('dig-rectum-anus', '#134E4A', 2);
+
+          return svgHeader('gDig', 'Diagram Phantom Pencernaan') + `
+            <path d="M215 24 C175 24,152 54,154 90 C155 110,146 118,142 128 C138 135,146 140,152 142 C150 152,146 158,154 164 C152 172,160 184,178 188 L198 192 L198 228 C140 242,96 266,92 314 L86 520 C86 560,128 592,185 605 L220 638 L340 638 L375 605 C432 592,474 560,474 520 L468 314 C464 266,420 242,362 228 L362 192 C388 180,398 148,396 112 C394 56,330 24,215 24 Z" fill="#FFF" stroke="#CBD5E1" stroke-width="2"/>
+            <path d="M118 308 Q280 268 442 308" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5 4"/>
+            <g data-organ="dig-cavum-oris" class="${oOris.cls}">
+              <path d="M164 128 C185 114,232 114,254 124 L258 146 C236 156,185 156,164 146 Z" fill="#FDA4AF" stroke="${oOris.stroke}" stroke-width="${oOris.sw}"/>
+              <path d="M168 126 Q204 116 238 123 Q250 126 254 137" fill="none" stroke="#9F1239" stroke-width="3.5" stroke-linecap="round"/>
+              <path d="M176 146 C194 134,224 134,240 146 Z" fill="#E11D48"/>
+              <rect x="158" y="110" width="104" height="50" fill="transparent"/>
+            </g>
+            <g data-organ="dig-pharynx" class="${oPhar.cls}">
+              <path d="M252 94 C278 94,290 112,290 135 L290 206 L262 206 L262 152 C262 138,252 130,252 118 Z" fill="#FDBA74" stroke="${oPhar.stroke}" stroke-width="${oPhar.sw}"/>
+              <path d="M262 174 Q274 166 277 180" fill="none" stroke="#9A3412" stroke-width="2.5" stroke-linecap="round"/>
+            </g>
+            <g data-organ="dig-saliva" class="${oSal.cls}">
+              <path d="M294 114 C316 110,326 128,316 146 C306 156,292 146,294 114 Z" fill="#FDE047" stroke="${oSal.stroke}" stroke-width="${oSal.sw}"/>
+              <ellipse cx="236" cy="168" rx="14" ry="8" fill="#FDE047" stroke="${oSal.stroke}" stroke-width="${oSal.sw}"/>
+              <ellipse cx="202" cy="158" rx="10" ry="5.5" fill="#FEF08A" stroke="${oSal.stroke}" stroke-width="${oSal.sw}"/>
+              <circle cx="305" cy="132" r="22" fill="transparent"/>
+            </g>
+            <g data-organ="dig-esophagus" class="${oEso.cls}">
+              <path d="M266 206 L288 206 L292 318 C292 325,270 326,268 318 Z" fill="#FB923C" stroke="${oEso.stroke}" stroke-width="${oEso.sw}"/>
+            </g>
+            <g data-organ="dig-pancreas" class="${oPan.cls}">
+              <path d="M244 374 C228 374,224 396,240 402 L338 386 C356 382,366 368,356 358 C344 352,304 366,244 374 Z" fill="#FBBF24" stroke="${oPan.stroke}" stroke-width="${oPan.sw}"/>
+            </g>
+            <g data-organ="dig-stomach" class="${oSto.cls}">
+              <path d="M274 314 C295 294,344 294,358 326 C374 360,348 408,298 408 C272 408,256 392,248 382 L256 362 C268 372,286 376,302 366 C314 356,306 334,274 314 Z" fill="#FB7185" fill-opacity="0.92" stroke="${oSto.stroke}" stroke-width="${oSto.sw}"/>
+            </g>
+            <g data-organ="dig-liver" class="${oLiv.cls}">
+              <path d="M142 320 C150 284,232 280,276 302 C292 310,286 324,260 328 C226 334,198 362,162 372 C142 378,134 350,142 320 Z" fill="#9A3412" stroke="${oLiv.stroke}" stroke-width="${oLiv.sw}"/>
+            </g>
+            <g data-organ="dig-gallbladder" class="${oGb.cls}">
+              <path d="M192 356 C182 364,178 380,188 386 C198 392,210 380,206 364 L216 346" fill="#16A34A" stroke="${oGb.stroke}" stroke-width="${oGb.sw}"/>
+              <circle cx="196" cy="372" r="20" fill="transparent"/>
+            </g>
+            <g data-organ="dig-small-intestine" class="${oSi.cls}">
+              <path d="M248 370 C216 366,212 406,238 416" fill="none" stroke="#EA580C" stroke-width="15" stroke-linecap="round"/>
+              <path d="M234 416 C276 410,326 420,318 438 C310 456,214 438,212 460 C210 482,342 460,344 484 C346 508,206 492,210 516 C214 540,336 520,332 542 C328 562,232 556,202 536" fill="none" stroke="#FB923C" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M234 416 C276 410,326 420,318 438 C310 456,214 438,212 460 C210 482,342 460,344 484 C346 508,206 492,210 516 C214 540,336 520,332 542 C328 562,232 556,202 536" fill="none" stroke="${oSi.stroke}" stroke-width="${oSi.sw}" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+            <g data-organ="dig-large-intestine" class="${oLi.cls}">
+              <path d="M164 546 L160 426 C160 402,184 396,208 402 Q280 416 352 400 C378 394,394 408,392 432 L386 540 C384 568,340 572,312 566 C288 560,276 572,278 584" fill="none" stroke="#14B8A6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M164 546 L160 426 C160 402,184 396,208 402 Q280 416 352 400 C378 394,394 408,392 432 L386 540 C384 568,340 572,312 566 C288 560,276 572,278 584" fill="none" stroke="${oLi.stroke}" stroke-width="${oLi.sw}" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M164 558 Q146 576 158 588" fill="none" stroke="#0D9488" stroke-width="7" stroke-linecap="round"/>
+            </g>
+            <g data-organ="dig-rectum-anus" class="${oRec.cls}">
+              <path d="M264 580 L294 580 L290 622 L268 622 Z" fill="#0F766E" stroke="${oRec.stroke}" stroke-width="${oRec.sw}"/>
+              <ellipse cx="279" cy="622" rx="15" ry="5" fill="#F43F5E" stroke="#881337" stroke-width="1.5"/>
+            </g>
+            <g class="pointer-events-none" font-family="Plus Jakarta Sans, sans-serif" font-size="10.5" font-weight="600">
+              ${lbl('dig-cavum-oris','x1="164" y1="134" x2="108" y2="112"',16,98,94,'Kavum Oris',63,113)}
+              ${lbl('dig-saliva','x1="320" y1="130" x2="404" y2="104"',404,91,118,'Kelenjar Saliva',463,106)}
+              ${lbl('dig-pharynx','x1="290" y1="168" x2="404" y2="156"',404,143,84,'Faring',446,158)}
+              ${lbl('dig-esophagus','x1="290" y1="248" x2="404" y2="238"',404,225,116,'Esofagus (±25 cm)',462,240)}
+              ${lbl('dig-liver','x1="145" y1="318" x2="96" y2="286"',14,274,86,'Hati (±1,5 kg)',57,289)}
+              ${lbl('dig-gallbladder','x1="184" y1="376" x2="104" y2="376"',12,364,96,'K. Empedu',60,379)}
+              ${lbl('dig-stomach','x1="358" y1="336" x2="420" y2="332"',420,320,118,'Lambung (Gaster)',479,335)}
+              ${lbl('dig-pancreas','x1="356" y1="374" x2="420" y2="378"',420,366,94,'Pankreas',467,381)}
+              ${lbl('dig-small-intestine','x1="276" y1="486" x2="424" y2="486"',424,474,100,'Usus Halus',474,489)}
+              ${lbl('dig-large-intestine','x1="150" y1="484" x2="96" y2="484"',14,472,84,'Usus Besar',56,487)}
+              ${lbl('dig-rectum-anus','x1="292" y1="612" x2="396" y2="612"',396,600,114,'Rektum & Anus',453,615)}
+            </g></svg>`;
+        }
+
+        function renderCardioSvg() {
+          const a = (id, s, w) => organAttrs(id, s, w);
+          const dim = state.cardioLayer === 'conduction' ? 0.45 : 1;
+          const lbl = (id, line, rx, ry, rw, txt, tx, ty, bg='#FFF', brd='#CBD5E1', tc='#0F172A') => showLabelFor(id)
+            ? `<g><line ${line} stroke="#475569" stroke-width="1.1"/><rect x="${rx}" y="${ry}" width="${rw}" height="22" rx="5" fill="${bg}" stroke="${brd}"/><text x="${tx}" y="${ty}" text-anchor="middle" fill="${tc}">${txt}</text></g>` : '';
+
+          const oPer = a('cv-pericardium','#64748B',2.2), oMio = a('cv-myocardium','#881337',2.4), oEnd = a('cv-endocardium','#FDA4AF',3.5);
+          const oVc = a('cv-vena-cava','#1E3A8A',2), oPv = a('cv-pulm-vein','#991B1B',1.8), oAo = a('cv-aorta','#7F1D1D',2), oPa = a('cv-pulm-artery','#1E3A8A',2);
+          const oRa = a('cv-ra','#1E3A8A',2), oRv = a('cv-rv','#1D4ED8',2), oLa = a('cv-la','#991B1B',2), oLv = a('cv-lv','#7F1D1D',2);
+          const oVt = a('cv-valve-tricuspid','#FEF3C7',6), oVm = a('cv-valve-mitral','#FEF3C7',6), oVp = a('cv-valve-pulmonary','#FEF3C7',6.5), oVa = a('cv-valve-aortic','#FEF3C7',6.5);
+          const oSa = a('cv-sa-node','#854D0E',2), oAv = a('cv-av-node','#78350F',2), oHp = a('cv-his-purkinje','#FACC15',state.cardioLayer==='conduction'?3.6:2.5);
+
+          const flowOverlay = state.cardioLayer === 'circulation' ? `
+            <g class="pointer-events-none">
+              <path d="M162 82 L162 210" fill="none" stroke="#1E40AF" stroke-width="3" class="flow-animated" marker-end="url(#arrB)"/>
+              <path d="M166 575 L166 470" fill="none" stroke="#1E40AF" stroke-width="3" class="flow-animated" marker-end="url(#arrB)"/>
+              <path d="M178 278 Q198 338 206 420" fill="none" stroke="#1E40AF" stroke-width="2.8" class="flow-animated" marker-end="url(#arrB)"/>
+              <path d="M238 424 Q242 290 238 190 L364 168" fill="none" stroke="#1E40AF" stroke-width="2.8" class="flow-animated" marker-end="url(#arrB)"/>
+              <path d="M476 212 L372 246" fill="none" stroke="#DC2626" stroke-width="2.8" class="flow-animated" marker-end="url(#arrR)"/>
+              <path d="M346 276 Q332 342 332 430" fill="none" stroke="#DC2626" stroke-width="2.8" class="flow-animated" marker-end="url(#arrR)"/>
+              <path d="M318 446 Q282 350 272 200 C272 130,326 130,336 184" fill="none" stroke="#DC2626" stroke-width="2.8" class="flow-animated" marker-end="url(#arrR)"/>
+            </g>` : '';
+
+          return svgHeader('gCv', 'Diagram Phantom Cardiovaskuler') + `
+            <text x="20" y="26" font-size="10" font-weight="600" fill="#64748B" font-family="IBM Plex Mono">KANAN PASIEN (Dextra)</text>
+            <text x="540" y="26" font-size="10" font-weight="600" fill="#64748B" text-anchor="end" font-family="IBM Plex Mono">KIRI PASIEN (Sinistra)</text>
+            <g data-organ="cv-pericardium" class="${oPer.cls}" opacity="${dim}">
+              <path d="M148 214 C110 264,96 364,134 446 C172 528,286 588,370 578 C432 570,456 490,452 384 C448 280,412 216,360 198 C300 176,192 162,148 214 Z" fill="#E2E8F0" fill-opacity="0.48" stroke-dasharray="6 4" stroke="${oPer.stroke}" stroke-width="${oPer.sw}"/>
+            </g>
+            <g data-organ="cv-vena-cava" class="${oVc.cls}" opacity="${dim}">
+              <path d="M142 66 L182 66 L182 222 L142 222 Z" fill="#2563EB" stroke="${oVc.stroke}" stroke-width="${oVc.sw}"/>
+              <path d="M148 456 L186 456 L186 594 L148 594 Z" fill="#2563EB" stroke="${oVc.stroke}" stroke-width="${oVc.sw}"/>
+            </g>
+            <g data-organ="cv-pulm-vein" class="${oPv.cls}" opacity="${dim}">
+              <path d="M390 218 L484 198 L488 220 L392 238 Z" fill="#EF4444" stroke="${oPv.stroke}" stroke-width="${oPv.sw}"/>
+              <path d="M394 252 L488 244 L490 266 L394 274 Z" fill="#EF4444" stroke="${oPv.stroke}" stroke-width="${oPv.sw}"/>
+              <path d="M88 228 L146 236 L144 254 L84 246 Z" fill="#EF4444" stroke="${oPv.stroke}" stroke-width="${oPv.sw}"/>
+              <path d="M86 262 L144 268 L142 284 L82 278 Z" fill="#EF4444" stroke="${oPv.stroke}" stroke-width="${oPv.sw}"/>
+            </g>
+            <g data-organ="cv-aorta" class="${oAo.cls}" opacity="${dim}">
+              <path d="M276 156 L316 156 L316 596 L276 596 Z" fill="#B91C1C" stroke="#7F1D1D" stroke-width="1.6"/>
+              <path d="M250 286 L250 184 C250 108,344 106,356 184 L356 206 L314 206 L314 184 C310 150,290 150,290 184 L290 286 Z" fill="#DC2626" stroke="${oAo.stroke}" stroke-width="${oAo.sw}"/>
+              <path d="M258 134 L246 72 L268 70 L278 128 Z M288 122 L290 62 L308 62 L306 122 Z M318 128 L336 68 L354 74 L334 136 Z" fill="#DC2626" stroke="#7F1D1D" stroke-width="1.6"/>
+            </g>
+            <g data-organ="cv-myocardium" class="${oMio.cls}" opacity="${dim}">
+              <path d="M156 226 C118 274,114 374,152 442 C192 516,296 566,362 558 C412 552,434 476,428 380 C424 304,404 242,364 214 C322 186,200 186,156 226 Z" fill="#BE123C" stroke="${oMio.stroke}" stroke-width="${oMio.sw}"/>
+            </g>
+            <g data-organ="cv-ra" class="${oRa.cls}" opacity="${dim}">
+              <path d="M144 226 C128 262,130 326,156 346 L222 332 C226 284,212 232,182 214 Z" fill="#3B82F6" stroke="${oRa.stroke}" stroke-width="${oRa.sw}"/>
+            </g>
+            <g data-organ="cv-rv" class="${oRv.cls}" opacity="${dim}">
+              <path d="M160 358 C150 404,174 468,240 502 C262 514,274 494,272 454 L262 324 L224 340 Z" fill="#60A5FA" stroke="${oRv.stroke}" stroke-width="${oRv.sw}"/>
+            </g>
+            <g data-organ="cv-la" class="${oLa.cls}" opacity="${dim}">
+              <path d="M304 222 C348 214,396 234,396 286 C396 312,376 326,356 328 L304 316 Z" fill="#EF4444" stroke="${oLa.stroke}" stroke-width="${oLa.sw}"/>
+            </g>
+            <g data-organ="cv-lv" class="${oLv.cls}" opacity="${dim}">
+              <path d="M300 328 L358 338 C378 394,376 476,344 514 C320 530,302 496,296 444 Z" fill="#DC2626" stroke="${oLv.stroke}" stroke-width="${oLv.sw}"/>
+            </g>
+            <g data-organ="cv-endocardium" class="${oEnd.cls}" opacity="${dim}">
+              <path d="M304 334 L352 343 C370 396,368 470,341 505 C322 518,308 488,302 440 Z" fill="none" stroke="${oEnd.stroke}" stroke-width="${oEnd.sw}"/>
+            </g>
+            <g data-organ="cv-pulm-artery" class="${oPa.cls}" opacity="${dim}">
+              <path d="M226 324 L216 218 C212 172,246 154,290 156 L382 152 L382 184 L286 186 C262 186,254 200,256 226 L264 320 Z" fill="#3B82F6" stroke="${oPa.stroke}" stroke-width="${oPa.sw}"/>
+              <path d="M222 178 L106 176 L106 204 L222 204 Z" fill="#3B82F6" stroke="${oPa.stroke}" stroke-width="${oPa.sw}"/>
+            </g>
+            <g data-organ="cv-valve-tricuspid" class="${oVt.cls}" opacity="${dim}">
+              <path d="M160 348 L194 360 L224 338" fill="none" stroke="${oVt.stroke}" stroke-width="${oVt.sw}" stroke-linecap="round"/><circle cx="192" cy="352" r="20" fill="transparent"/>
+            </g>
+            <g data-organ="cv-valve-mitral" class="${oVm.cls}" opacity="${dim}">
+              <path d="M304 322 L332 342 L358 332" fill="none" stroke="${oVm.stroke}" stroke-width="${oVm.sw}" stroke-linecap="round"/><circle cx="332" cy="332" r="20" fill="transparent"/>
+            </g>
+            <g data-organ="cv-valve-pulmonary" class="${oVp.cls}" opacity="${dim}">
+              <path d="M226 300 Q244 316 262 300" fill="none" stroke="${oVp.stroke}" stroke-width="${oVp.sw}" stroke-linecap="round"/><circle cx="244" cy="304" r="19" fill="transparent"/>
+            </g>
+            <g data-organ="cv-valve-aortic" class="${oVa.cls}" opacity="${dim}">
+              <path d="M272 284 Q288 298 304 284" fill="none" stroke="${oVa.stroke}" stroke-width="${oVa.sw}" stroke-linecap="round"/><circle cx="288" cy="288" r="19" fill="transparent"/>
+            </g>
+            <g data-organ="cv-sa-node" class="${oSa.cls}">
+              <path d="M164 236 Q190 250 210 304" fill="none" stroke="#FACC15" stroke-width="2.5" stroke-dasharray="4 3"/>
+              <circle cx="162" cy="236" r="9" fill="#FACC15" stroke="${oSa.stroke}" stroke-width="${oSa.sw}"/><circle cx="162" cy="236" r="20" fill="transparent"/>
+            </g>
+            <g data-organ="cv-av-node" class="${oAv.cls}">
+              <circle cx="216" cy="314" r="8.5" fill="#F59E0B" stroke="${oAv.stroke}" stroke-width="${oAv.sw}"/><circle cx="216" cy="314" r="19" fill="transparent"/>
+            </g>
+            <g data-organ="cv-his-purkinje" class="${oHp.cls}">
+              <path d="M224 318 L274 344 L272 478 Q256 500 220 484 Q178 460 168 410" fill="none" stroke="${oHp.stroke}" stroke-width="${oHp.sw}" stroke-linecap="round"/>
+              <path d="M274 344 L292 486 Q318 524 352 496 Q374 446 370 380" fill="none" stroke="${oHp.stroke}" stroke-width="${oHp.sw}" stroke-linecap="round"/>
+              <rect x="260" y="340" width="44" height="160" fill="transparent"/>
+            </g>
+            <g transform="translate(18,502)">
+              <rect x="0" y="0" width="122" height="140" rx="10" fill="#FFF" stroke="#CBD5E1" stroke-width="1.5"/>
+              <text x="61" y="17" font-size="9.5" font-weight="700" text-anchor="middle" fill="#0F172A">3 Lapisan Dinding</text>
+              <g data-organ="cv-pericardium" class="${oPer.cls}"><rect x="12" y="28" width="98" height="28" rx="5" fill="#CBD5E1" stroke="${oPer.stroke}" stroke-width="1.5"/><text x="61" y="46" font-size="10" font-weight="600" text-anchor="middle" fill="#0F172A">Perikardium</text></g>
+              <g data-organ="cv-myocardium" class="${oMio.cls}"><rect x="12" y="64" width="98" height="32" rx="5" fill="#BE123C" stroke="${oMio.stroke}" stroke-width="1.5"/><text x="61" y="84" font-size="10" font-weight="600" text-anchor="middle" fill="#FFF">Miokardium</text></g>
+              <g data-organ="cv-endocardium" class="${oEnd.cls}"><rect x="12" y="104" width="98" height="24" rx="5" fill="#FDA4AF" stroke="#9F1239" stroke-width="1.5"/><text x="61" y="120" font-size="10" font-weight="600" text-anchor="middle" fill="#881337">Endokardium</text></g>
+            </g>
+            ${flowOverlay}
+            <g class="pointer-events-none" font-family="Plus Jakarta Sans, sans-serif" font-size="10" font-weight="600">
+              ${lbl('cv-vena-cava','x1="142" y1="108" x2="96" y2="96"',10,84,88,'Vena Cava',54,99)}
+              ${lbl('cv-aorta','x1="336" y1="118" x2="412" y2="82"',412,70,76,'Aorta',450,85)}
+              ${lbl('cv-pulm-artery','x1="378" y1="168" x2="424" y2="146"',424,134,118,'Arteri Pulmonalis',483,149)}
+              ${lbl('cv-pulm-vein','x1="470" y1="256" x2="462" y2="292"',418,292,124,'Vena Pulmonalis',480,307)}
+              ${lbl('cv-ra','x1="138" y1="282" x2="96" y2="294"',8,282,90,'Atrium Dextra',53,297)}
+              ${lbl('cv-rv','x1="176" y1="440" x2="106" y2="452"',8,440,102,'Ventrikel Dextra',59,455)}
+              ${lbl('cv-la','x1="386" y1="286" x2="432" y2="334"',430,324,110,'Atrium Sinistra',485,339)}
+              ${lbl('cv-lv','x1="362" y1="452" x2="424" y2="460"',424,448,118,'Ventrikel Sinistra',483,463)}
+              ${lbl('cv-valve-tricuspid','x1="176" y1="352" x2="108" y2="352"',8,340,102,'K. Trikuspidalis',59,355)}
+              ${lbl('cv-valve-mitral','x1="346" y1="334" x2="430" y2="372"',430,362,112,'K. Bikuspid/Mitral',486,377)}
+              ${lbl('cv-valve-pulmonary','x1="244" y1="304" x2="108" y2="394"',8,384,104,'K. Pulmonal',60,399)}
+              ${lbl('cv-valve-aortic','x1="288" y1="288" x2="424" y2="404"',424,396,108,'K. Aorta',478,411)}
+              ${lbl('cv-sa-node','x1="162" y1="227" x2="96" y2="144"',12,132,84,'SA Node',54,147,'#FEF9C3','#CA8A04','#713F12')}
+              ${lbl('cv-av-node','x1="216" y1="314" x2="96" y2="244"',12,232,84,'AV Node',54,247,'#FEF9C3','#CA8A04','#713F12')}
+              ${lbl('cv-his-purkinje','x1="284" y1="490" x2="404" y2="560"',374,558,154,'Berkas His & Purkinje',451,573,'#FEF9C3','#CA8A04','#713F12')}
+            </g></svg>`;
+        }
+
+        function renderEndocrineSvg() {
+          const a = (id, s, w) => organAttrs(id, s, w);
+          const lbl = (id, line, rx, ry, rw, txt, tx, ty, bg='#FFF', brd='#CBD5E1', tc='#0F172A') => showLabelFor(id)
+            ? `<g>${line ? `<line ${line} stroke="#475569" stroke-width="1.1"/>` : ''}<rect x="${rx}" y="${ry}" width="${rw}" height="21" rx="5" fill="${bg}" stroke="${brd}"/><text x="${tx}" y="${ty}" text-anchor="middle" fill="${tc}">${txt}</text></g>` : '';
+
+          const oHyp = a('end-hypothalamus','#5B21B6',1.8), oPa = a('end-pituitary-ant','#881337',1.8), oPp = a('end-pituitary-post','#312E81',1.8);
+          const oThy = a('end-thyroid','#9A3412',1.8), oPar = a('end-parathyroid','#854D0E',1.8), oAdr = a('end-adrenal','#78350F',1.8);
+          const oPan = a('end-pancreas-islets','#B45309',1.8), oOv = a('end-ovary','#831843',1.8), oTes = a('end-testis','#075985',1.8);
+
+          return svgHeader('gEnd', 'Diagram Phantom Endokrin') + `
+            <path d="M280 28 C242 28,224 58,226 94 C228 122,244 146,254 156 L254 184 C198 196,152 222,146 274 L132 412 L164 416 L176 306 L182 474 C182 518,200 546,220 564 L216 634 L264 634 L272 560 L288 560 L296 634 L344 634 L340 564 C360 546,378 518,378 474 L384 306 L396 416 L428 412 L414 274 C408 222,362 196,306 184 L306 156 C316 146,332 122,334 94 C336 58,318 28,280 28 Z" fill="#FFF" stroke="#CBD5E1" stroke-width="2"/>
+            <ellipse cx="236" cy="364" rx="18" ry="28" fill="#E2E8F0" stroke="#94A3B8" stroke-width="1.2"/>
+            <ellipse cx="324" cy="364" rx="18" ry="28" fill="#E2E8F0" stroke="#94A3B8" stroke-width="1.2"/>
+            <g data-organ="end-hypothalamus" class="${oHyp.cls}">
+              <circle cx="280" cy="94" r="7.5" fill="#8B5CF6" stroke="${oHyp.stroke}" stroke-width="${oHyp.sw}"/>
+            </g>
+            <g data-organ="end-thyroid" class="${oThy.cls}">
+              <path d="M262 176 C254 178,252 206,266 208 C272 208,274 198,276 194 L284 194 C286 198,288 208,294 208 C308 206,306 178,298 176 C290 174,286 184,284 186 L276 186 C274 184,270 174,262 176 Z" fill="#F97316" stroke="${oThy.stroke}" stroke-width="${oThy.sw}"/>
+              <circle cx="280" cy="192" r="24" fill="transparent"/>
+            </g>
+            <g data-organ="end-adrenal" class="${oAdr.cls}">
+              <path d="M220 344 L236 322 L252 344 Z M308 344 L324 322 L340 344 Z" fill="#D97706" stroke="${oAdr.stroke}" stroke-width="${oAdr.sw}"/>
+              <circle cx="236" cy="336" r="22" fill="transparent"/><circle cx="324" cy="336" r="22" fill="transparent"/>
+            </g>
+            <g data-organ="end-pancreas-islets" class="${oPan.cls}">
+              <path d="M252 384 C244 388,246 404,260 404 L322 390 C334 386,336 374,324 372 Z" fill="#FBBF24" stroke="${oPan.stroke}" stroke-width="${oPan.sw}"/>
+            </g>
+            <g data-organ="end-ovary" class="${oOv.cls}">
+              <ellipse cx="242" cy="482" rx="11" ry="7.5" fill="#EC4899" stroke="${oOv.stroke}" stroke-width="${oOv.sw}"/>
+              <ellipse cx="318" cy="482" rx="11" ry="7.5" fill="#EC4899" stroke="${oOv.stroke}" stroke-width="${oOv.sw}"/>
+              <circle cx="242" cy="482" r="20" fill="transparent"/><circle cx="318" cy="482" r="20" fill="transparent"/>
+            </g>
+            <g data-organ="end-testis" class="${oTes.cls}">
+              <ellipse cx="268" cy="542" rx="9" ry="12" fill="#0284C7" stroke="${oTes.stroke}" stroke-width="${oTes.sw}"/>
+              <ellipse cx="292" cy="542" rx="9" ry="12" fill="#0284C7" stroke="${oTes.stroke}" stroke-width="${oTes.sw}"/>
+              <circle cx="280" cy="542" r="24" fill="transparent"/>
+            </g>
+            <!-- Inset A: Brain Axis -->
+            <g transform="translate(384,24)">
+              <rect x="0" y="0" width="160" height="148" rx="12" fill="#FFF" stroke="#CBD5E1" stroke-width="1.5"/>
+              <text x="80" y="18" font-size="9.5" font-weight="700" text-anchor="middle" fill="#0F172A">Aksis Otak</text>
+              <g data-organ="end-hypothalamus" class="${oHyp.cls}"><path d="M40 34 C66 24,94 24,120 34 L92 66 L68 66 Z" fill="#8B5CF6" stroke="${oHyp.stroke}" stroke-width="${oHyp.sw}"/><text x="80" y="48" font-size="9" font-weight="600" text-anchor="middle" fill="#FFF">Hipotalamus</text></g>
+              <g data-organ="end-pituitary-ant" class="${oPa.cls}"><path d="M44 106 C44 82,78 78,80 94 L80 124 C64 132,44 124,44 106 Z" fill="#E11D48" stroke="${oPa.stroke}" stroke-width="${oPa.sw}"/><text x="61" y="108" font-size="8.5" font-weight="700" text-anchor="middle" fill="#FFF">Ant.</text></g>
+              <g data-organ="end-pituitary-post" class="${oPp.cls}"><path d="M80 94 C82 78,116 82,116 106 C116 124,96 132,80 124 Z" fill="#4F46E5" stroke="${oPp.stroke}" stroke-width="${oPp.sw}"/><text x="99" y="108" font-size="8.5" font-weight="700" text-anchor="middle" fill="#FFF">Post.</text></g>
+              <text x="80" y="140" font-size="8.5" text-anchor="middle" fill="#64748B">Hipofisis (Pituitari)</text>
+            </g>
+            <!-- Inset B: Parathyroid -->
+            <g transform="translate(16,112)">
+              <rect x="0" y="0" width="154" height="132" rx="12" fill="#FFF" stroke="#CBD5E1" stroke-width="1.5"/>
+              <text x="77" y="18" font-size="9.5" font-weight="700" text-anchor="middle" fill="#0F172A">Posterior Tiroid</text>
+              <path d="M42 42 C26 46,24 102,48 106 C62 108,66 86,70 80 L84 80 C88 86,92 108,106 106 C130 102,128 46,112 42 C98 38,90 58,84 62 L70 62 C64 58,56 38,42 42 Z" fill="#FED7AA" stroke="#FB923C" stroke-width="1.4"/>
+              <g data-organ="end-parathyroid" class="${oPar.cls}">
+                <circle cx="48" cy="58" r="8" fill="#EAB308" stroke="${oPar.stroke}" stroke-width="${oPar.sw}"/>
+                <circle cx="48" cy="90" r="8" fill="#EAB308" stroke="${oPar.stroke}" stroke-width="${oPar.sw}"/>
+                <circle cx="106" cy="58" r="8" fill="#EAB308" stroke="${oPar.stroke}" stroke-width="${oPar.sw}"/>
+                <circle cx="106" cy="90" r="8" fill="#EAB308" stroke="${oPar.stroke}" stroke-width="${oPar.sw}"/>
+                <rect x="30" y="42" width="94" height="64" fill="transparent"/>
+              </g>
+              <text x="77" y="122" font-size="8.5" text-anchor="middle" fill="#64748B">4 Kelenjar Paratiroid</text>
+            </g>
+            <!-- Inset C: Langerhans -->
+            <g transform="translate(388,342)">
+              <rect x="0" y="0" width="156" height="128" rx="12" fill="#FFF" stroke="#CBD5E1" stroke-width="1.5"/>
+              <text x="78" y="18" font-size="9.5" font-weight="700" text-anchor="middle" fill="#0F172A">Pulau Langerhans</text>
+              <g data-organ="end-pancreas-islets" class="${oPan.cls}">
+                <circle cx="78" cy="64" r="36" fill="#FEF3C7" stroke="${oPan.stroke}" stroke-width="2"/>
+                <circle cx="68" cy="58" r="7" fill="#0284C7"/><circle cx="84" cy="68" r="7" fill="#0284C7"/>
+                <circle cx="92" cy="52" r="6" fill="#DC2626"/><circle cx="58" cy="74" r="6" fill="#DC2626"/>
+              </g>
+              <text x="78" y="114" font-size="8.5" text-anchor="middle" fill="#0369A1">Sel β (Insulin) · Sel α (Glukagon)</text>
+            </g>
+            <g class="pointer-events-none" font-family="Plus Jakarta Sans, sans-serif" font-size="10" font-weight="600">
+              ${lbl('end-hypothalamus','',192,4,94,'Hipotalamus',239,18)}
+              ${lbl('end-pituitary-ant','',384,176,106,'Hipofisis Anterior',437,190,'#FFE4E6','#E11D48','#881337')}
+              ${lbl('end-pituitary-post','',384,200,106,'Hipofisis Posterior',437,214,'#E0E7FF','#4F46E5','#312E81')}
+              ${lbl('end-thyroid','x1="304" y1="192" x2="360" y2="236"',360,226,96,'Kelenjar Tiroid',408,241)}
+              ${lbl('end-parathyroid','',16,250,120,'Paratiroid (4)',76,265,'#FEF9C3','#CA8A04','#713F12')}
+              ${lbl('end-adrenal','x1="220" y1="336" x2="128" y2="336"',14,324,114,'Kelenjar Adrenal',71,339)}
+              ${lbl('end-pancreas-islets','',388,476,156,'P. Langerhans',466,491)}
+              ${lbl('end-ovary','x1="232" y1="482" x2="128" y2="482"',18,470,110,'Gonad: Ovarium',73,485)}
+              ${lbl('end-testis','x1="300" y1="546" x2="404" y2="546"',404,534,106,'Gonad: Testis',457,549)}
+            </g></svg>`;
+        }
+
+        function getDisplayedSystem() {
+          if (state.mode === 'locate' && state.locateTarget) return state.locateTarget.system;
+          return state.tab === 'mixed' ? state.mixedView : state.tab;
+        }
+
+        function shuffle(arr) {
+          const c = [...arr];
+          for (let i = c.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [c[i], c[j]] = [c[j], c[i]];
+          }
+          return c;
+        }
+
+        function pickNextLocate() {
+          let pool = state.tab === 'mixed' ? ORGANS : ORGANS.filter(o => o.system === state.tab);
+          if (state.drillMissed) {
+            const mp = ORGANS.filter(o => state.missedIds.includes(o.id));
+            if (mp.length) pool = mp;
+          }
+          const cands = pool.length > 1 && state.locateTarget ? pool.filter(o => o.id !== state.locateTarget.id) : pool;
+          const chosen = cands[Math.floor(Math.random() * cands.length)] || null;
+          state.locateTarget = chosen;
+          state.locateKind = state.locatePromptPref === 'mixed' ? (Math.random() < 0.5 ? 'name' : 'clue') : state.locatePromptPref;
+          state.locateFeedback = null;
+          if (chosen && state.tab === 'mixed') state.mixedView = chosen.system;
+        }
+
+        function rebuildQuiz() {
+          const pool = state.tab === 'mixed' ? QUIZZES : QUIZZES.filter(q => q.system === state.tab);
+          state.quizList = shuffle(pool);
+          state.quizIdx = 0;
+          state.quizChoice = null;
+        }
+
+        function renderAll() {
+          // Nav Tabs
+          const tabs = [
+            { id: 'digestive', label: 'Pencernaan' },
+            { id: 'cardiovascular', label: 'Cardiovaskuler' },
+            { id: 'endocrine', label: 'Endokrin' },
+            { id: 'mixed', label: 'Mode Campuran' },
+          ];
+          document.getElementById('desktopNav').innerHTML = tabs.map(t =>
+            `<button data-tab="${t.id}" class="py-5 border-b-2 transition-colors whitespace-nowrap shrink-0 ${state.tab===t.id?'border-sky-600 text-slate-900 font-semibold':'border-transparent text-slate-600 hover:text-slate-900'}">${t.label}</button>`
+          ).join('');
+          document.getElementById('mobileNav').innerHTML = tabs.map(t =>
+            `<button data-tab="${t.id}" class="px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 ${state.tab===t.id?'bg-slate-900 text-white':'bg-slate-100 text-slate-700'}">${t.label}</button>`
+          ).join('');
+
+          // Mode Tabs
+          const modes = [
+            { id: 'explore', label: '1. Eksplorasi Phantom' },
+            { id: 'locate', label: '2. Tebak Lokasi' },
+            { id: 'quiz', label: '3. Kuis Fisiologi' },
+          ];
+          document.getElementById('modeTabs').innerHTML = modes.map(m =>
+            `<button data-mode="${m.id}" class="px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${state.mode===m.id?'bg-white text-slate-900 shadow-sm':'text-slate-600 hover:text-slate-900'}">${m.label}</button>`
+          ).join('');
+
+          // Telemetry
+          document.getElementById('statScore').textContent = state.score;
+          document.getElementById('statStreak').textContent = state.streak;
+          document.getElementById('statAccuracy').textContent = (state.attempts > 0 ? Math.round((state.corrects / state.attempts) * 100) : 0) + '%';
+          document.getElementById('missedCountTop').textContent = state.missedIds.length;
+
+          // Stage
+          const sys = getDisplayedSystem();
+          const orgCount = ORGANS.filter(o => o.system === sys).length;
+          document.getElementById('stageMeta').innerHTML = `${SYSTEM_META[sys].label} · <span class="font-mono-tabular">${orgCount} Struktur</span>`;
+          document.getElementById('stageTitle').textContent = state.tab === 'mixed' ? `Mode Campuran — ${SYSTEM_META[sys].label}` : SYSTEM_META[sys].label;
+          document.getElementById('stageSystemTag').textContent = SYSTEM_META[sys].shortLabel;
+
+          let ctrlHtml = '';
+          if (state.tab === 'mixed' && state.mode !== 'locate') {
+            ctrlHtml += `<div class="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">` +
+              ['digestive','cardiovascular','endocrine'].map(s => `<button data-mview="${s}" class="px-2.5 py-1 text-xs font-medium rounded-md whitespace-nowrap ${state.mixedView===s?'bg-white text-slate-900 shadow-sm':'text-slate-600'}">${SYSTEM_META[s].shortLabel}</button>`).join('') +
+              `</div>`;
+          }
+          if (state.mode === 'explore') {
+            ctrlHtml += `<button id="toggleLblBtn" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 whitespace-nowrap">${state.showLabels ? 'Sembunyikan Label' : 'Tampilkan Label'}</button>`;
+          }
+          document.getElementById('stageControls').innerHTML = ctrlHtml;
+
+          const cvBar = document.getElementById('cardioLayerBar');
+          if (sys === 'cardiovascular') {
+            cvBar.classList.remove('hidden');
+            cvBar.innerHTML = `<span class="text-xs text-slate-500">Lapisan Phantom Jantung:</span>
+              <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+                ${[{id:'all',l:'Anatomi Lengkap'},{id:'conduction',l:'Konduksi Listrik'},{id:'circulation',l:'Aliran Darah'}].map(x =>
+                  `<button data-cvlayer="${x.id}" class="px-2.5 py-1 text-xs font-medium rounded-md whitespace-nowrap ${state.cardioLayer===x.id?'bg-white text-slate-900 shadow-sm':'text-slate-600'}">${x.l}</button>`
+                ).join('')}
+              </div>`;
+          } else {
+            cvBar.classList.add('hidden');
+          }
+
+          const svgStage = document.getElementById('svgStage');
+          svgStage.innerHTML = sys === 'digestive' ? renderDigestiveSvg() : sys === 'cardiovascular' ? renderCardioSvg() : renderEndocrineSvg();
+
+          document.getElementById('hoverCaption').textContent = state.mode === 'locate' && !state.locateFeedback
+            ? 'Mode Ujian Aktif: Label disembunyikan. Klik bagian organ yang diminta.'
+            : 'Arahkan kursor atau klik langsung organ pada diagram phantom.';
+
+          // Right Deck
+          const deck = document.getElementById('rightDeck');
+          if (state.mode === 'explore') {
+            const org = ORGANS.find(o => o.id === state.selectedId);
+            const avail = state.tab === 'mixed' ? ORGANS : ORGANS.filter(o => o.system === state.tab);
+            const flows = state.tab === 'mixed' ? FLOWS : FLOWS.filter(f => f.system === state.tab);
+            const actFlow = FLOWS.find(f => f.id === state.flowId);
+            const actStep = actFlow ? actFlow.steps[state.flowStep] : null;
+
+            deck.innerHTML = `
+              <div class="bg-white border border-slate-200 rounded-xl p-5 sm:p-6">
+                ${org ? `
+                  <div class="text-xs text-slate-500 mb-2">${SYSTEM_META[org.system].label} · ${org.category} · <span class="font-mono-tabular italic text-sky-700">${org.latinName}</span></div>
+                  <h2 class="text-xl font-bold text-slate-900 mb-4">${org.name}</h2>
+                  <div class="space-y-3.5 text-sm leading-relaxed text-slate-700">
+                    <div><h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Letak &amp; Struktur</h3><p>${org.locationAndStructure}</p></div>
+                    <div class="pt-3 border-t border-slate-100"><h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Fungsi Utama</h3><p>${org.mainFunction}</p></div>
+                    <div class="pt-3 border-t border-slate-100"><h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Peran Fisiologis</h3><p>${org.physiologicalRole}</p></div>
+                    <div class="pt-3 border-t border-slate-100"><div class="bg-sky-50 border border-sky-200 rounded-lg p-3 text-xs text-slate-700"><strong>Catatan OSPE:</strong> ${org.ospeTip}</div></div>
+                    <div class="text-xs text-slate-500 font-mono-tabular">${org.keyFacts.join(' · ')}</div>
+                  </div>` : '<p class="text-sm text-slate-600">Klik organ pada phantom di sebelah kiri.</p>'}
+              </div>
+              <div class="bg-white border border-slate-200 rounded-xl p-5 sm:p-6">
+                <h3 class="text-sm font-bold text-slate-900 mb-2">Alur Fisiologi &amp; Mekanisme</h3>
+                <div class="flex flex-wrap gap-1.5 mb-3">
+                  ${flows.map(f => `<button data-flow="${f.id}" class="px-3 py-1.5 text-xs font-medium rounded-lg border ${state.flowId===f.id?'bg-slate-900 text-white border-slate-900':'bg-slate-50 text-slate-700 border-slate-200'}">${f.title}</button>`).join('')}
+                </div>
+                ${actFlow && actStep ? `
+                  <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <div class="text-xs font-mono-tabular font-semibold text-sky-700 mb-1">Langkah ${state.flowStep+1} / ${actFlow.steps.length} · ${actFlow.summary}</div>
+                    <h4 class="text-sm font-bold text-slate-900 mb-1">${actStep.title}</h4>
+                    <p class="text-sm text-slate-700 mb-3">${actStep.detail}</p>
+                    <div class="flex items-center justify-between">
+                      <button id="flowPrevBtn" ${state.flowStep===0?'disabled':''} class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40">Sebelumnya</button>
+                      <button id="flowNextBtn" ${state.flowStep===actFlow.steps.length-1?'disabled':''} class="px-3 py-1.5 text-xs font-medium rounded-lg bg-sky-600 text-white disabled:opacity-40">Lanjut</button>
+                    </div>
+                  </div>` : '<p class="text-xs text-slate-500">Pilih alur di atas untuk menyorot jalur fisiologi pada diagram.</p>'}
+              </div>
+              <div class="bg-white border border-slate-200 rounded-xl p-5">
+                <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2.5">Daftar Struktur (${avail.length})</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-52 overflow-y-auto">
+                  ${avail.map(o => `<button data-pick="${o.id}" class="text-left px-3 py-2 rounded-lg text-xs font-medium truncate ${state.selectedId===o.id?'bg-sky-50 text-sky-900 border border-sky-300':'bg-slate-50 text-slate-700 hover:bg-slate-100'}">${o.name}</button>`).join('')}
+                </div>
+              </div>`;
+          } else if (state.mode === 'locate') {
+            const t = state.locateTarget;
+            const fb = state.locateFeedback;
+            deck.innerHTML = `
+              <div class="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="text-xs font-semibold text-slate-500 uppercase">Format Soal</span>
+                  <div class="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+                    ${[{id:'mixed',l:'Acak'},{id:'name',l:'Nama Organ'},{id:'clue',l:'Fungsi/Ciri'}].map(x =>
+                      `<button data-lpref="${x.id}" class="px-2.5 py-1 text-xs font-medium rounded-md ${state.locatePromptPref===x.id?'bg-white text-slate-900 shadow-sm':'text-slate-600'}">${x.l}</button>`
+                    ).join('')}
+                  </div>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                  <span>Fokus Organ Masih Salah (${state.missedIds.length})</span>
+                  <button id="toggleDrillBtn" ${state.missedIds.length===0&&!state.drillMissed?'disabled':''} class="px-3 py-1.5 font-medium rounded-lg border disabled:opacity-40 ${state.drillMissed?'bg-amber-600 text-white border-amber-600':'bg-white text-slate-700 border-slate-200'}">${state.drillMissed?'Mode Ulang Aktif':'Latih Bagian Salah'}</button>
+                </div>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-xl p-5 sm:p-6">
+                ${t ? `
+                  <div class="text-xs text-slate-500 mb-3">Soal #${state.locateNum} · ${SYSTEM_META[t.system].label} · ${state.locateKind==='name'?'Identifikasi Nama':'Klu Fungsi'}</div>
+                  ${state.locateKind==='name'
+                    ? `<p class="text-xs text-slate-500 mb-1">Klik struktur berikut pada diagram phantom:</p><h2 class="text-2xl font-bold text-slate-900 mb-1">${t.name}</h2><p class="text-xs font-mono-tabular italic text-slate-500">${t.latinName}</p>`
+                    : `<p class="text-xs text-slate-500 mb-1.5">Tunjukkan pada phantom organ yang sesuai:</p><p class="text-base font-semibold text-slate-900">"${t.cluePrompt}"</p>`}
+                  ${!fb
+                    ? `<div class="mt-5 text-xs text-sky-800 bg-sky-50 border border-sky-200 rounded-lg px-3.5 py-2.5">Klik langsung bagian organ pada diagram SVG di sebelah kiri.</div>`
+                    : `<div class="mt-5 space-y-4">
+                        <div class="rounded-lg border p-4 ${fb.ok?'bg-emerald-50 border-emerald-200':'bg-rose-50 border-rose-200'}">
+                          <div class="font-bold text-sm ${fb.ok?'text-emerald-900':'text-rose-900'} mb-1">${fb.ok?'Benar! Lokasi Tepat (+10 Poin)':'Kurang Tepat — Lokasi Benar Ditandai Hijau'}</div>
+                          ${!fb.ok && fb.clicked ? `<p class="text-xs text-rose-800 mb-1">Anda mengklik: <strong>${fb.clicked.name}</strong>.</p>` : ''}
+                          <p class="text-xs text-slate-700"><strong>${fb.target.name}:</strong> ${fb.target.mainFunction}</p>
+                        </div>
+                        <button id="nextLocateBtn" class="w-full py-2.5 text-sm font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800">Soal Berikutnya →</button>
+                      </div>`
+                  }` : '<p class="text-sm text-slate-600">Tidak ada soal.</p>'}
+              </div>`;
+          } else {
+            const q = state.quizList[state.quizIdx];
+            const ans = state.quizChoice;
+            deck.innerHTML = q ? `
+              <div class="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4">
+                <div class="text-xs text-slate-500 font-mono-tabular">Soal ${state.quizIdx+1} / ${state.quizList.length} · ${SYSTEM_META[q.system].label}</div>
+                <h2 class="text-base sm:text-lg font-bold text-slate-900">${q.q}</h2>
+                <div class="space-y-2">
+                  ${q.opts.map((opt, idx) => {
+                    let cls = 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50';
+                    if (ans !== null) {
+                      if (idx === q.ans) cls = 'bg-emerald-50 border-emerald-500 text-emerald-950 font-medium';
+                      else if (idx === ans) cls = 'bg-rose-50 border-rose-500 text-rose-950';
+                      else cls = 'bg-slate-50 border-slate-200 text-slate-400';
+                    }
+                    return `<button data-qopt="${idx}" ${ans!==null?'disabled':''} class="w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors ${cls}"><strong>${String.fromCharCode(65+idx)}.</strong> ${opt}</button>`;
+                  }).join('')}
+                </div>
+                ${ans !== null ? `
+                  <div class="pt-3 border-t border-slate-100 space-y-3">
+                    <div class="rounded-lg border p-3.5 text-xs sm:text-sm ${ans===q.ans?'bg-emerald-50 border-emerald-200 text-emerald-950':'bg-rose-50 border-rose-200 text-rose-950'}">
+                      <div class="font-bold mb-1">${ans===q.ans?'Jawaban Benar (+10 Poin)':'Kurang Tepat — Jawaban: '+String.fromCharCode(65+q.ans)}</div>
+                      <p class="text-slate-700">${q.exp}</p>
+                    </div>
+                    <button id="nextQuizBtn" class="w-full py-2.5 text-sm font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800">Pertanyaan Berikutnya →</button>
+                  </div>` : ''}
+              </div>` : '';
+          }
+
+          bindEvents();
+        }
+
+        function bindEvents() {
+          document.querySelectorAll('[data-tab]').forEach(el => {
+            el.onclick = () => {
+              state.tab = el.dataset.tab;
+              state.flowId = null;
+              if (state.tab !== 'mixed') {
+                const first = ORGANS.find(o => o.system === state.tab);
+                if (first) state.selectedId = first.id;
+              }
+              rebuildQuiz();
+              if (state.mode === 'locate') { state.locateNum = 1; pickNextLocate(); }
+              renderAll();
+            };
+          });
+          document.querySelectorAll('[data-mode]').forEach(el => {
+            el.onclick = () => {
+              state.mode = el.dataset.mode;
+              if (state.mode === 'locate') { state.locateNum = 1; pickNextLocate(); }
+              renderAll();
+            };
+          });
+          document.querySelectorAll('[data-mview]').forEach(el => {
+            el.onclick = () => { state.mixedView = el.dataset.mview; renderAll(); };
+          });
+          document.querySelectorAll('[data-cvlayer]').forEach(el => {
+            el.onclick = () => { state.cardioLayer = el.dataset.cvlayer; renderAll(); };
+          });
+          const lblBtn = document.getElementById('toggleLblBtn');
+          if (lblBtn) lblBtn.onclick = () => { state.showLabels = !state.showLabels; renderAll(); };
+
+          document.querySelectorAll('[data-organ]').forEach(el => {
+            const oid = el.dataset.organ;
+            el.onmouseenter = () => {
+              if (state.mode === 'explore') {
+                const o = ORGANS.find(x => x.id === oid);
+                if (o) document.getElementById('hoverCaption').textContent = `Sorotan: ${o.name} (${o.latinName})`;
+              }
+            };
+            el.onclick = () => {
+              if (state.mode === 'explore') {
+                state.selectedId = oid;
+                renderAll();
+              } else if (state.mode === 'locate' && state.locateTarget && !state.locateFeedback) {
+                const clicked = ORGANS.find(x => x.id === oid) || null;
+                const ok = oid === state.locateTarget.id;
+                state.attempts++;
+                if (ok) { state.score += 10; state.streak++; state.corrects++; }
+                else {
+                  state.streak = 0;
+                  if (!state.missedIds.includes(state.locateTarget.id)) state.missedIds.push(state.locateTarget.id);
+                }
+                state.locateFeedback = { ok, clicked, target: state.locateTarget };
+                renderAll();
+              }
+            };
+          });
+
+          document.querySelectorAll('[data-pick]').forEach(el => {
+            el.onclick = () => {
+              state.selectedId = el.dataset.pick;
+              const o = ORGANS.find(x => x.id === state.selectedId);
+              if (o && state.tab === 'mixed') state.mixedView = o.system;
+              renderAll();
+            };
+          });
+          document.querySelectorAll('[data-flow]').forEach(el => {
+            el.onclick = () => {
+              state.flowId = state.flowId === el.dataset.flow ? null : el.dataset.flow;
+              state.flowStep = 0;
+              if (state.flowId) {
+                const f = FLOWS.find(x => x.id === state.flowId);
+                if (f) {
+                  if (state.tab === 'mixed') state.mixedView = f.system;
+                  if (f.steps[0]?.highlight[0]) state.selectedId = f.steps[0].highlight[0];
+                }
+              }
+              renderAll();
+            };
+          });
+          const fp = document.getElementById('flowPrevBtn');
+          if (fp) fp.onclick = () => { state.flowStep = Math.max(0, state.flowStep - 1); renderAll(); };
+          const fn = document.getElementById('flowNextBtn');
+          if (fn) fn.onclick = () => { state.flowStep++; renderAll(); };
+
+          document.querySelectorAll('[data-lpref]').forEach(el => {
+            el.onclick = () => { state.locatePromptPref = el.dataset.lpref; pickNextLocate(); renderAll(); };
+          });
+          const td = document.getElementById('toggleDrillBtn');
+          if (td) td.onclick = () => { state.drillMissed = !state.drillMissed; state.locateNum = 1; pickNextLocate(); renderAll(); };
+          const nl = document.getElementById('nextLocateBtn');
+          if (nl) nl.onclick = () => { state.locateNum++; pickNextLocate(); renderAll(); };
+
+          document.querySelectorAll('[data-qopt]').forEach(el => {
+            el.onclick = () => {
+              const idx = Number(el.dataset.qopt);
+              const q = state.quizList[state.quizIdx];
+              if (!q || state.quizChoice !== null) return;
+              state.quizChoice = idx;
+              state.attempts++;
+              if (idx === q.ans) { state.score += 10; state.streak++; state.corrects++; }
+              else {
+                state.streak = 0;
+                if (!state.missedIds.includes(q.organ)) state.missedIds.push(q.organ);
+              }
+              if (state.tab === 'mixed') state.mixedView = q.system;
+              state.selectedId = q.organ;
+              renderAll();
+            };
+          });
+          const nq = document.getElementById('nextQuizBtn');
+          if (nq) nq.onclick = () => {
+            if (state.quizIdx + 1 < state.quizList.length) state.quizIdx++;
+            else { rebuildQuiz(); }
+            state.quizChoice = null;
+            renderAll();
+          };
+        }
+
+        function renderMissedModal() {
+          const modal = document.getElementById('missedModal');
+          const list = ORGANS.filter(o => state.missedIds.includes(o.id));
+          document.getElementById('missedModalSub').textContent = `${list.length} struktur perlu pengulangan`;
+          const body = document.getElementById('missedModalBody');
+          const footer = document.getElementById('missedModalFooter');
+          if (!list.length) {
+            body.innerHTML = `<p class="text-sm text-slate-600 text-center py-8">Belum ada organ yang salah.</p>`;
+            footer.classList.add('hidden');
+          } else {
+            footer.classList.remove('hidden');
+            body.innerHTML = list.map(o => `
+              <div class="border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-3 bg-slate-50">
+                <div><div class="text-xs text-slate-500">${SYSTEM_META[o.system].shortLabel} · ${o.latinName}</div><div class="text-sm font-semibold text-slate-900">${o.name}</div></div>
+                <div class="flex gap-1.5">
+                  <button data-mlearn="${o.id}" class="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white">Pelajari</button>
+                  <button data-mdel="${o.id}" class="px-2 py-1.5 text-xs text-rose-700 hover:bg-rose-50 rounded-lg">Hapus</button>
+                </div>
+              </div>`).join('');
+            body.querySelectorAll('[data-mlearn]').forEach(b => b.onclick = () => {
+              const o = ORGANS.find(x => x.id === b.dataset.mlearn);
+              if (o) { state.tab = o.system; state.selectedId = o.id; state.mode = 'explore'; modal.classList.add('hidden'); renderAll(); }
+            });
+            body.querySelectorAll('[data-mdel]').forEach(b => b.onclick = () => {
+              state.missedIds = state.missedIds.filter(id => id !== b.dataset.mdel);
+              renderMissedModal(); renderAll();
+            });
+          }
+          modal.classList.remove('hidden');
+        }
+
+        document.getElementById('openMissedTopBtn').onclick = renderMissedModal;
+        document.getElementById('closeMissedBtn').onclick = () => document.getElementById('missedModal').classList.add('hidden');
+        document.getElementById('clearMissedBtn').onclick = () => { state.missedIds = []; state.drillMissed = false; renderMissedModal(); renderAll(); };
+        document.getElementById('drillAllMissedBtn').onclick = () => {
+          state.tab = 'mixed'; state.mode = 'locate'; state.drillMissed = true; state.locateNum = 1; pickNextLocate();
+          document.getElementById('missedModal').classList.add('hidden'); renderAll();
+        };
+        document.getElementById('resetStatsBtn').onclick = () => { state.score = 0; state.streak = 0; state.attempts = 0; state.corrects = 0; renderAll(); };
+
+        rebuildQuiz();
+        renderAll();
+      })();
+    </script>
+  </body>
+</html>
